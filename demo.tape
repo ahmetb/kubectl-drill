@@ -13,8 +13,8 @@ Output img/demo.gif
 Set Shell bash
 Set FontFamily "Hack Nerd Font"
 Set FontSize 20
-Set Width 2000
-Set Height 780
+Set Width 1500
+Set Height 680
 Set LineHeight 1.2
 Set TypingSpeed 25ms
 Set Theme "Catppuccin Mocha"
@@ -35,7 +35,7 @@ Show
 Type "# YOUR NODE LABELS PROBABLY LOOK LIKE THIS:
 Sleep 200ms
 Enter
-Type "kubectl get nodes --show-labels | head -3"
+Type "kubectl get nodes --show-labels | head -2"
 Sleep 300ms
 Enter
 Sleep 1500ms
