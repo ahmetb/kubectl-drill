@@ -75,6 +75,8 @@ Labels identical on every resource are hidden by default (`--all` shows them;
 `--vary` prints only distinctive ones, with no footers, for scripting). Keys
 unique per resource are tagged `(identity)` — they can't group anything.
 `--sort-by=name|coverage|cardinality` and `--group-prefix` control the view.
+Tables adapt to your terminal width; value tables cap at 50 rows (`--all`
+shows the rest).
 
 ### Value distribution
 
@@ -91,9 +93,10 @@ missing on 1: node-3
 ### Interactive browser
 
 `kubectl labels browse <type>` (or `-i` on any query) opens a Miller-columns
-TUI: drill **prefix → key → value → resources**, filter with `/`, toggle
-distinctive-only with `v`, and copy the implied `-l key=value` selector with
-`c` to reuse in `kubectl get`.
+TUI: drill **prefix → key → value → resources** (arrows, `hjkl`, `tab`; `esc`
+steps back), filter any column with `/`, toggle distinctive-only with `v`,
+and copy the implied `-l key=value` selector with `c` to reuse in
+`kubectl get`.
 
 ## Output formats
 
@@ -117,7 +120,7 @@ kubectl krew install labels
 ```
 
 Or download the binary from the **Releases** page and move it somewhere on
-your `PATH` as `kubectl-labels`.
+your `PATH` as `kubectl-labels`. Verify with `kubectl labels version`.
 
 ## Development
 
