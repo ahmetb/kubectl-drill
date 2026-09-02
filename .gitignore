@@ -1,3 +1,4 @@
 kubectl-labels
 *.tar.gz
 dist/
+hack/demo/kubeconfig

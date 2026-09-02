@@ -120,9 +120,13 @@ your `PATH` as `kubectl-labels`.
 ## Development
 
 ```shell
-go test ./...    # unit + integration tests (no cluster needed)
-hack/e2e.sh      # end-to-end CLI harness against testdata/
-vhs demo.tape    # record img/demo.gif (requires vhs)
+go test ./...     # unit + integration tests (no cluster needed)
+hack/e2e.sh       # end-to-end CLI harness against testdata/
+
+# record img/demo.gif (requires vhs, kind, docker):
+hack/demo/up.sh   # kind cluster with fake label-heavy nodes
+vhs demo.tape
+hack/demo/down.sh
 ```
 
 ## License
