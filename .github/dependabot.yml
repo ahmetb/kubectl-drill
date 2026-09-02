@@ -19,3 +19,8 @@ updates:
     kubernetes:
       patterns:
         - "k8s.io/*"
+  ignore:
+    # tablewriter v1.x is a different API; v0.0.5 is pinned intentionally
+  - dependency-name: github.com/olekukonko/tablewriter
+    update-types:
+    - version-update:semver-major
