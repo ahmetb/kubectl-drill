@@ -16,6 +16,7 @@
 package render
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,9 +39,10 @@ var (
 )
 
 const (
-	maxSamples   = 3
-	maxSampleLen = 48
-	barWidth     = 24
+	maxSamples      = 3
+	maxSampleLen    = 48
+	maxSamplesWidth = 56 // total width of the joined samples column
+	barWidth        = 24
 )
 
 // Options controls rendering of all views.
@@ -84,7 +86,7 @@ func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 		return nil
 	}
 
-	table := newTable(w, []string{"KEY", "COVERAGE", "VALUES", "SAMPLE VALUES"})
+	table, buf := newTable([]string{"KEY", "COVERAGE", "VALUES", "SAMPLE VALUES"})
 	appendKey := func(k analysis.KeyStat, indent bool) {
 		key := k.Key
 		if indent {
@@ -121,7 +123,7 @@ func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 			appendKey(k, false)
 		}
 	}
-	table.Render()
+	flushTable(w, table, buf)
 
 	if !opts.All && !opts.Vary && uniformCount > 0 {
 		noun := "keys"
@@ -161,7 +163,7 @@ func ValueDistribution(w io.Writer, set analysis.Set, key string, opts Options) 
 			max = v.Count
 		}
 	}
-	table := newTable(w, []string{"VALUE", "COUNT", "DISTRIBUTION"})
+	table, buf := newTable([]string{"VALUE", "COUNT", "DISTRIBUTION"})
 	for _, v := range vs.Values {
 		n := v.Count * barWidth / max
 		if n == 0 {
@@ -173,7 +175,7 @@ func ValueDistribution(w io.Writer, set analysis.Set, key string, opts Options) 
 			cyan.Sprint(strings.Repeat("█", n)),
 		})
 	}
-	table.Render()
+	flushTable(w, table, buf)
 
 	if len(vs.Missing) > 0 {
 		names := resourceNames(vs.Missing, 5)
@@ -234,8 +236,13 @@ func ResourceList(w io.Writer, view, stats analysis.Set, opts Options) error {
 	return nil
 }
 
-func newTable(w io.Writer, header []string) *tablewriter.Table {
-	table := tablewriter.NewWriter(w)
+// newTable builds a table that renders into an internal buffer; call
+// flushTable to write it out. Rows are right-trimmed on flush so padded
+// cells never emit trailing whitespace (which wraps ugly in terminals
+// narrower than the table).
+func newTable(header []string) (*tablewriter.Table, *bytes.Buffer) {
+	buf := &bytes.Buffer{}
+	table := tablewriter.NewWriter(buf)
 	table.SetHeader(header)
 	table.SetBorder(false)
 	table.SetHeaderLine(false)
@@ -243,7 +250,14 @@ func newTable(w io.Writer, header []string) *tablewriter.Table {
 	table.SetAutoWrapText(false)
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	return table
+	return table, buf
+}
+
+func flushTable(w io.Writer, table *tablewriter.Table, buf *bytes.Buffer) {
+	table.Render()
+	for _, line := range strings.Split(strings.TrimRight(buf.String(), "\n"), "\n") {
+		fmt.Fprintln(w, strings.TrimRight(line, " "))
+	}
 }
 
 func samples(k analysis.KeyStat) string {
@@ -254,11 +268,11 @@ func samples(k analysis.KeyStat) string {
 		}
 		parts[i] = truncate(p, maxSampleLen)
 	}
-	s := strings.Join(parts, gray.Sprint(", "))
+	s := strings.Join(parts, ", ")
 	if rest := k.Cardinality - len(parts); rest > 0 {
-		s += gray.Sprintf(", +%d more", rest)
+		s += fmt.Sprintf(", +%d more", rest)
 	}
-	return s
+	return truncate(s, maxSamplesWidth)
 }
 
 func resourceNames(rs []analysis.Resource, limit int) string {
