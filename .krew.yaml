@@ -1,0 +1,45 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: labels
+spec:
+  version: {{ .TagName }}
+  homepage: https://github.com/ahmetb/kubectl-labels
+  shortDescription: Explore and pivot resource labels
+  description: |
+    A kubectl plugin to explore Kubernetes resource labels: which label
+    keys exist across a set of resources, their cardinality and coverage,
+    how values are distributed, and what makes individual resources
+    different. Ships an interactive terminal browser for drilling into
+    resources with many labels.
+  platforms:
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: amd64
+    {{addURIAndSha "https://github.com/ahmetb/kubectl-labels/releases/download/{{ .TagName }}/kubectl-labels_{{ .TagName }}_darwin_amd64.tar.gz" .TagName }}
+    bin: kubectl-labels
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: arm64
+    {{addURIAndSha "https://github.com/ahmetb/kubectl-labels/releases/download/{{ .TagName }}/kubectl-labels_{{ .TagName }}_darwin_arm64.tar.gz" .TagName }}
+    bin: kubectl-labels
+  - selector:
+      matchLabels:
+        os: linux
+        arch: amd64
+    {{addURIAndSha "https://github.com/ahmetb/kubectl-labels/releases/download/{{ .TagName }}/kubectl-labels_{{ .TagName }}_linux_amd64.tar.gz" .TagName }}
+    bin: kubectl-labels
+  - selector:
+      matchLabels:
+        os: linux
+        arch: arm64
+    {{addURIAndSha "https://github.com/ahmetb/kubectl-labels/releases/download/{{ .TagName }}/kubectl-labels_{{ .TagName }}_linux_arm64.tar.gz" .TagName }}
+    bin: kubectl-labels
+  - selector:
+      matchLabels:
+        os: windows
+        arch: amd64
+    {{addURIAndSha "https://github.com/ahmetb/kubectl-labels/releases/download/{{ .TagName }}/kubectl-labels_{{ .TagName }}_windows_amd64.tar.gz" .TagName }}
+    bin: kubectl-labels.exe

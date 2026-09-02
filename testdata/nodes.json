@@ -1,0 +1,69 @@
+{
+  "apiVersion": "v1",
+  "kind": "NodeList",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "node-0",
+        "labels": {
+          "kubernetes.io/hostname": "node-0",
+          "kubernetes.io/os": "linux",
+          "kubernetes.io/arch": "amd64",
+          "topology.kubernetes.io/zone": "zone-a",
+          "node-role.kubernetes.io/worker": "",
+          "node-init.example.com/ready": "true",
+          "example.com/pool": "cpu",
+          "feature.node.kubernetes.io/cpu-cpuid.ADX": "true",
+          "feature.node.kubernetes.io/cpu-cpuid.AESNI": "true",
+          "feature.node.kubernetes.io/kernel-version.major": "6"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "node-1",
+        "labels": {
+          "kubernetes.io/hostname": "node-1",
+          "kubernetes.io/os": "linux",
+          "kubernetes.io/arch": "amd64",
+          "topology.kubernetes.io/zone": "zone-b",
+          "node-role.kubernetes.io/worker": "",
+          "node-init.example.com/ready": "true",
+          "example.com/pool": "cpu",
+          "feature.node.kubernetes.io/cpu-cpuid.AESNI": "true",
+          "feature.node.kubernetes.io/kernel-version.major": "6"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "node-2",
+        "labels": {
+          "kubernetes.io/hostname": "node-2",
+          "kubernetes.io/os": "linux",
+          "kubernetes.io/arch": "arm64",
+          "topology.kubernetes.io/zone": "zone-a",
+          "node-init.example.com/ready": "true",
+          "example.com/pool": "arm"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "node-3",
+        "labels": {
+          "kubernetes.io/hostname": "node-3",
+          "node-init.example.com/ready": "true"
+        }
+      }
+    }
+  ]
+}

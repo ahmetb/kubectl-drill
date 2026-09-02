@@ -1,0 +1,34 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+    - name: Setup Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+    - name: Test
+      run: go test ./...
+    - name: Vet
+      run: go vet ./...
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+    - name: Setup Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+    - name: GoReleaser
+      uses: goreleaser/goreleaser-action@v7
+      with:
+        version: '~> v2'
+        args: release --snapshot --clean
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

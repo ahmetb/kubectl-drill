@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-0
+  namespace: prod
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/version: v1.2.3
+    pod-template-hash: 7d4c5f9b6d
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-1
+  namespace: prod
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/version: v1.2.4
+    pod-template-hash: 6b8f7c5d4e
