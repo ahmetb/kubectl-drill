@@ -43,6 +43,7 @@ const (
 	maxSampleLen    = 48
 	maxSamplesWidth = 56 // total width of the joined samples column
 	barWidth        = 24
+	maxValueRows    = 50 // value rows shown before truncating (—all lifts the cap)
 )
 
 // Options controls rendering of all views.
@@ -76,6 +77,11 @@ func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 		bold.Sprintf("%d %s", total, opts.SetLabel),
 		gray.Sprintf("%d distinct keys", len(stats)),
 		gray.Sprintf("%d distinctive", len(distinctive)))
+
+	if len(stats) == 0 {
+		fmt.Fprintln(w, gray.Sprintf("none of the %d %s carry any labels", total, opts.SetLabel))
+		return nil
+	}
 
 	show := distinctive
 	if opts.All {
@@ -164,7 +170,11 @@ func ValueDistribution(w io.Writer, set analysis.Set, key string, opts Options) 
 		}
 	}
 	table, buf := newTable([]string{"VALUE", "COUNT", "DISTRIBUTION"})
-	for _, v := range vs.Values {
+	rows := vs.Values
+	if !opts.All && len(rows) > maxValueRows {
+		rows = rows[:maxValueRows]
+	}
+	for _, v := range rows {
 		n := v.Count * barWidth / max
 		if n == 0 {
 			n = 1
@@ -176,6 +186,10 @@ func ValueDistribution(w io.Writer, set analysis.Set, key string, opts Options) 
 		})
 	}
 	flushTable(w, table, buf)
+
+	if rest := len(vs.Values) - len(rows); rest > 0 {
+		fmt.Fprintf(w, "%s\n", gray.Sprintf("… %d more values hidden · use --all to show", rest))
+	}
 
 	if len(vs.Missing) > 0 {
 		names := resourceNames(vs.Missing, 5)

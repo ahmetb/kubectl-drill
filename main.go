@@ -37,14 +37,21 @@ var (
 	selectorOpt   string
 	filenameOpts  = &resource.FilenameOptions{}
 
-	listFlag      bool
-	varyFlag      bool
-	allFlag       bool
-	sortBy        string
-	groupPrefix   bool
-	outputFormat  string
-	noColorFlag   bool
-	interactive   bool
+	listFlag     bool
+	varyFlag     bool
+	allFlag      bool
+	sortBy       string
+	groupPrefix  bool
+	outputFormat string
+	noColorFlag  bool
+	interactive  bool
+)
+
+// Build information, overridden by goreleaser ldflags.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 func main() {
@@ -77,46 +84,59 @@ the value distribution. With TYPE/NAME it lists one resource's labels.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.MaximumNArgs(2),
+		Version:       version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(configFlags, args)
 		},
 	}
+	root.SetVersionTemplate(versionString())
 
 	browse := &cobra.Command{
-		Use:   "browse TYPE[/NAME]",
-		Short: "Interactively browse label keys, values and resources",
-		Args:  cobra.MaximumNArgs(1),
+		Use:          "browse TYPE[/NAME]",
+		Short:        "Interactively browse label keys, values and resources",
+		SilenceUsage: true,
+		Args:         cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			interactive = true
 			return run(configFlags, args)
 		},
 	}
 	keysAlias := &cobra.Command{
-		Use:    "keys TYPE[/NAME]",
-		Hidden: true,
-		Args:   cobra.MaximumNArgs(1),
+		Use:          "keys TYPE[/NAME]",
+		Hidden:       true,
+		SilenceUsage: true,
+		Args:         cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(configFlags, args)
 		},
 	}
 	valuesAlias := &cobra.Command{
-		Use:    "values TYPE[/NAME] KEY",
-		Hidden: true,
-		Args:   cobra.RangeArgs(1, 2),
+		Use:          "values TYPE[/NAME] KEY",
+		Hidden:       true,
+		SilenceUsage: true,
+		Args:         cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(configFlags, args)
 		},
 	}
 	listAlias := &cobra.Command{
-		Use:    "list TYPE[/NAME]",
-		Hidden: true,
-		Args:   cobra.MaximumNArgs(1),
+		Use:          "list TYPE[/NAME]",
+		Hidden:       true,
+		SilenceUsage: true,
+		Args:         cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listFlag = true
 			return run(configFlags, args)
 		},
 	}
-	root.AddCommand(browse, keysAlias, valuesAlias, listAlias)
+	root.AddCommand(browse, keysAlias, valuesAlias, listAlias, &cobra.Command{
+		Use:          "version",
+		Short:        "Print the kubectl-labels version",
+		SilenceUsage: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Print(versionString())
+		},
+	})
 
 	pf := root.PersistentFlags()
 	pf.BoolVarP(&allNamespaces, "all-namespaces", "A", false, "If present, list the requested object(s) across all namespaces")
@@ -138,6 +158,20 @@ the value distribution. With TYPE/NAME it lists one resource's labels.`,
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// versionString renders the --version output; commit and date are only
+// shown when set by a real build (not "dev" checkouts).
+func versionString() string {
+	s := "kubectl-labels " + version
+	if commit != "none" && commit != "" {
+		s += " (" + commit
+		if date != "unknown" && date != "" {
+			s += ", built " + date
+		}
+		s += ")"
+	}
+	return s + "\n"
 }
 
 func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
