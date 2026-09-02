@@ -156,6 +156,40 @@ func TestMissingRow(t *testing.T) {
 	}
 }
 
+func TestEscNavigatesBack(t *testing.T) {
+	m := newModel(testSet())
+	m = update(m, tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = update(m, special(tea.KeyRight), special(tea.KeyRight), special(tea.KeyRight))
+	if m.focus != 3 {
+		t.Fatalf("focus = %d, want 3", m.focus)
+	}
+	// esc and backspace step left like the arrow keys do
+	m = update(m, special(tea.KeyEsc))
+	if m.focus != 2 {
+		t.Errorf("focus after esc = %d, want 2", m.focus)
+	}
+	m = update(m, special(tea.KeyBackspace))
+	if m.focus != 1 {
+		t.Errorf("focus after backspace = %d, want 1", m.focus)
+	}
+	// esc on the first column is a no-op, not a quit
+	m = update(m, special(tea.KeyEsc), special(tea.KeyEsc))
+	if m.focus != 0 {
+		t.Errorf("focus = %d, want 0", m.focus)
+	}
+}
+
+func TestColumnHeadersShowCounts(t *testing.T) {
+	m := newModel(testSet())
+	m = update(m, tea.WindowSizeMsg{Width: 120, Height: 40})
+	v := m.View()
+	for _, want := range []string{"PREFIXES (3)", "KEYS (1)", "VALUES (2)"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view missing %q\n%s", want, v)
+		}
+	}
+}
+
 func TestQuit(t *testing.T) {
 	m := newModel(testSet())
 	m = update(m, tea.WindowSizeMsg{Width: 120, Height: 40})

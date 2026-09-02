@@ -16,6 +16,15 @@ jobs:
       run: go test ./...
     - name: Vet
       run: go vet ./...
+    - name: Format
+      run: |
+        unformatted=$(gofmt -l .)
+        if [[ -n "$unformatted" ]]; then
+          echo "gofmt needed on: $unformatted"
+          exit 1
+        fi
+    - name: E2E
+      run: hack/e2e.sh
   goreleaser:
     runs-on: ubuntu-latest
     steps:

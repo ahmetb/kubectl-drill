@@ -158,9 +158,13 @@ func (m *model) rebuildFrom(col int) {
 			if g.Prefix == "" {
 				title = "(no prefix)"
 			}
+			keys := fmt.Sprintf("%d keys", len(g.Keys))
+			if len(g.Keys) == 1 {
+				keys = "1 key"
+			}
 			items = append(items, item{
 				title:   title,
-				desc:    fmt.Sprintf("%d keys", len(g.Keys)),
+				desc:    keys,
 				payload: g.Prefix,
 			})
 		}
@@ -310,13 +314,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "left", "h":
+		case "left", "h", "esc", "backspace":
 			if m.focus > 0 {
 				m.focus--
 				m.updateFocus()
 			}
 			return m, nil
-		case "right", "l", "enter":
+		case "right", "l", "enter", "tab":
 			if m.focus < 3 && len(m.cols[m.focus].Items()) > 0 {
 				m.focus++
 				m.updateFocus()
@@ -369,7 +373,8 @@ func (m model) View() string {
 		if i == m.focus {
 			border = focusedBorder
 		}
-		col := headerStyle.Render(" "+columnTitles[i]) + "\n" + m.cols[i].View()
+		title := fmt.Sprintf(" %s (%d)", columnTitles[i], len(m.cols[i].VisibleItems()))
+		col := headerStyle.Render(title) + "\n" + m.cols[i].View()
 		rendered = append(rendered, border.Render(col))
 	}
 	columns := lipgloss.JoinHorizontal(lipgloss.Top, rendered...)
@@ -383,6 +388,6 @@ func (m model) View() string {
 	if m.status != "" {
 		status = "  " + statusStyle.Render(m.status)
 	}
-	help := helpStyle.Render("↑↓/jk move · ←→/hl drill · / filter · v vary · c copy selector · q quit")
+	help := helpStyle.Render("↑↓/jk move · ←→/hl/tab drill · esc back · / filter · v vary · c copy selector · q quit")
 	return header + "\n" + columns + "\n" + footerLeft + status + "\n" + help
 }
