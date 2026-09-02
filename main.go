@@ -311,7 +311,11 @@ func setLabel(resourceArg string, set analysis.Set) string {
 	if kind == "" {
 		return "resources"
 	}
-	return strings.ToLower(kind) + "s"
+	kind = strings.ToLower(kind)
+	if !strings.HasSuffix(kind, "s") {
+		kind += "s"
+	}
+	return kind
 }
 
 // browseTip suggests the equivalent browse command, only on interactive

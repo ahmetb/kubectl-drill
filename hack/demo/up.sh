@@ -58,9 +58,7 @@ KUBECONFIG="$KCFG" kubectl label --overwrite node "$CLUSTER-control-plane" \
   feature.node.kubernetes.io/cpu-cpuid.ASIMD=true \
   feature.node.kubernetes.io/cpu-cpuid.ASIMDDP=true \
   feature.node.kubernetes.io/cpu-cpuid.AES=true \
-  feature.node.kubernetes.io/cpu-cpuid.PMULL=true \
   feature.node.kubernetes.io/cpu-cpuid.SHA1=true \
-  feature.node.kubernetes.io/cpu-cpuid.SHA2=true \
   feature.node.kubernetes.io/cpu-cpuid.CRC32=true >/dev/null
 
 echo

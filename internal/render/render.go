@@ -20,11 +20,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"golang.org/x/term"
 	"sigs.k8s.io/yaml"
 
 	"github.com/ahmetb/kubectl-labels/internal/analysis"
@@ -57,6 +59,15 @@ type Options struct {
 	Tip         string // browse command to suggest; "" disables the tip
 }
 
+// CountNoun returns the singular form of the plural set noun when n is 1
+// ("nodes" -> "node"), so headers never read "1 nodes".
+func CountNoun(n int, plural string) string {
+	if n == 1 && strings.HasSuffix(plural, "s") {
+		return strings.TrimSuffix(plural, "s")
+	}
+	return plural
+}
+
 // KeySummary prints the pivot-by-key view.
 func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 	total := set.Total()
@@ -74,12 +85,12 @@ func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 	uniformCount := len(stats) - len(distinctive)
 
 	fmt.Fprintf(w, "%s · %s · %s\n",
-		bold.Sprintf("%d %s", total, opts.SetLabel),
+		bold.Sprintf("%d %s", total, CountNoun(total, opts.SetLabel)),
 		gray.Sprintf("%d distinct keys", len(stats)),
 		gray.Sprintf("%d distinctive", len(distinctive)))
 
 	if len(stats) == 0 {
-		fmt.Fprintln(w, gray.Sprintf("none of the %d %s carry any labels", total, opts.SetLabel))
+		fmt.Fprintln(w, gray.Sprintf("none of the %d %s carry any labels", total, CountNoun(total, opts.SetLabel)))
 		return nil
 	}
 
@@ -90,6 +101,26 @@ func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 	if len(show) == 0 {
 		fmt.Fprintln(w, gray.Sprint("all labels are identical across the set (--all to show them)"))
 		return nil
+	}
+
+	// Size the samples column to the terminal so rows never wrap; fall back
+	// to a fixed cap when not a TTY (pipes, tests).
+	keyWidth := 0
+	for _, k := range show {
+		n := len([]rune(k.Key))
+		if k.Identity(total) {
+			n += len("  (identity)")
+		}
+		if n > keyWidth {
+			keyWidth = n
+		}
+	}
+	samplesWidth := maxSamplesWidth
+	if tw := termWidth(w); tw > 0 {
+		// key + coverage + values columns, separators, breathing room
+		if b := tw - keyWidth - 24; b < samplesWidth {
+			samplesWidth = max(b, 12)
+		}
 	}
 
 	table, buf := newTable([]string{"KEY", "COVERAGE", "VALUES", "SAMPLE VALUES"})
@@ -108,7 +139,7 @@ func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 		if k.Uniform(total) && opts.All {
 			key = gray.Sprint(key)
 		}
-		table.Append([]string{key, cov, fmt.Sprint(k.Cardinality), samples(k)})
+		table.Append([]string{key, cov, fmt.Sprint(k.Cardinality), samples(k, samplesWidth)})
 	}
 
 	if opts.GroupPrefix {
@@ -274,7 +305,7 @@ func flushTable(w io.Writer, table *tablewriter.Table, buf *bytes.Buffer) {
 	}
 }
 
-func samples(k analysis.KeyStat) string {
+func samples(k analysis.KeyStat, width int) string {
 	parts := k.Samples(maxSamples)
 	for i, p := range parts {
 		if p == "" {
@@ -286,7 +317,21 @@ func samples(k analysis.KeyStat) string {
 	if rest := k.Cardinality - len(parts); rest > 0 {
 		s += fmt.Sprintf(", +%d more", rest)
 	}
-	return truncate(s, maxSamplesWidth)
+	return truncate(s, width)
+}
+
+// termWidth returns the width of the terminal backing w, or 0 if w is not
+// a terminal.
+func termWidth(w io.Writer) int {
+	f, ok := w.(*os.File)
+	if !ok {
+		return 0
+	}
+	width, _, err := term.GetSize(int(f.Fd()))
+	if err != nil {
+		return 0
+	}
+	return width
 }
 
 func resourceNames(rs []analysis.Resource, limit int) string {

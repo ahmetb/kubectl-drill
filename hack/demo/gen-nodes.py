@@ -31,9 +31,15 @@ ROLLOUTS = [
     ("e77c1a90bd23", "0.10.0"),
 ]
 
-INTEL_CPUID = ["ADX", "AESNI", "AVX", "AVX2", "AVX512F", "AVX512BW", "FMA3",
-               "SSE4A", "VAES", "VPCLMULQDQ", "SHA", "RDSEED"]
-ARM_CPUID = ["ASIMD", "ASIMDDP", "AES", "PMULL", "SHA1", "SHA2", "CRC32"]
+INTEL_CPUID = ["ADX", "AESNI", "AVX", "AVX2", "AVX512F", "FMA3", "SHA", "VAES"]
+ARM_CPUID = ["ASIMD", "ASIMDDP", "AES", "SHA1", "CRC32"]
+
+# gpu product -> (memory MiB, count)
+GPUS = {
+    "NVIDIA-L4": ("23040", "1"),
+    "NVIDIA-A10G": ("24576", "1"),
+    "NVIDIA-T4": ("15360", "1"),
+}
 
 
 def nfd_labels(vendor, cpuid, kernel_minor):
@@ -51,7 +57,7 @@ def nfd_labels(vendor, cpuid, kernel_minor):
 
 
 def node(name, pool, itype, family, cpu, mem, zone, arch, vendor, cpuid,
-         kernel_minor, rollout_idx, minute, extra=None):
+         kernel_minor, rollout_idx, minute, capacity="on-demand", extra=None):
     digest, version = ROLLOUTS[rollout_idx]
     labels = {
         "kubernetes.io/hostname": name,
@@ -61,6 +67,7 @@ def node(name, pool, itype, family, cpu, mem, zone, arch, vendor, cpuid,
         "topology.kubernetes.io/zone": zone,
         "node.kubernetes.io/instance-type": itype,
         "karpenter.sh/nodepool": pool,
+        "karpenter.sh/capacity-type": capacity,
         "karpenter.k8s.aws/instance-family": family,
         "karpenter.k8s.aws/instance-cpu": str(cpu),
         "karpenter.k8s.aws/instance-memory": str(mem),
@@ -79,6 +86,18 @@ def node(name, pool, itype, family, cpu, mem, zone, arch, vendor, cpuid,
     }
 
 
+def gpu_labels(product, driver):
+    mem, count = GPUS[product]
+    return {
+        "nvidia.com/gpu.present": "true",
+        "nvidia.com/gpu.product": product,
+        "nvidia.com/gpu.count": count,
+        "nvidia.com/gpu.memory": mem,
+        "nvidia.com/gpu-driver-version": driver,
+        "feature.node.kubernetes.io/pci-10de.present": "true",
+    }
+
+
 def main():
     nodes = []
     n = 0
@@ -88,42 +107,41 @@ def main():
         n += 1
         return f"ip-10-24-{10 + n}.ec2.internal"
 
-    # cpu pool: 7 amd64 (mixed Intel/AMD, mixed rollout generations)
-    for i in range(7):
+    # cpu pool: 10 amd64 (mixed Intel/AMD, mixed rollout generations, some spot)
+    for i in range(10):
         nodes.append(node(
             hostname(), "cpu", "c7a.2xlarge" if i % 2 else "c6a.2xlarge",
             "c7a" if i % 2 else "c6a", 8, 16384,
             ZONES[i % 3], "amd64",
             "AuthenticAMD" if i % 2 else "GenuineIntel", INTEL_CPUID,
             kernel_minor=8 if i < 4 else 10,
-            rollout_idx=min(i // 3, 2), minute=10 + i,
+            rollout_idx=min(i // 4, 2), minute=10 + i,
+            capacity="spot" if i % 3 == 0 else "on-demand",
         ))
     # cpu pool: 2 arm64 nodes
     for i in range(2):
         nodes.append(node(
             hostname(), "cpu", "c7g.2xlarge", "c7g", 8, 16384,
             ZONES[i % 2], "arm64", "ARM", ARM_CPUID,
-            kernel_minor=10, rollout_idx=2, minute=20 + i,
+            kernel_minor=10, rollout_idx=2, minute=30 + i,
         ))
-    # memory pool: 5 nodes
-    for i in range(5):
+    # memory pool: 8 nodes with local nvme storage
+    for i in range(8):
         nodes.append(node(
             hostname(), "memory", "r7a.2xlarge", "r7a", 8, 65536,
             ZONES[(i + 1) % 3], "amd64", "AuthenticAMD", INTEL_CPUID,
-            kernel_minor=10, rollout_idx=2, minute=30 + i,
+            kernel_minor=10, rollout_idx=2, minute=32 + i,
+            extra={"example.com/storage-tier": "local-nvme"},
         ))
-    # gpu pool: 3 nodes with extra accelerator labels
-    for i in range(3):
+    # gpu pool: 6 nodes, mixed products; one on an older driver
+    products = ["NVIDIA-L4"] * 3 + ["NVIDIA-A10G"] * 2 + ["NVIDIA-T4"]
+    for i, product in enumerate(products):
         nodes.append(node(
             hostname(), "gpu", "g6.2xlarge", "g6", 8, 32768,
             ZONES[i % 3], "amd64", "GenuineIntel", INTEL_CPUID,
             kernel_minor=10, rollout_idx=2, minute=40 + i,
-            extra={
-                "nvidia.com/gpu.present": "true",
-                "nvidia.com/gpu.product": "NVIDIA-L4",
-                "nvidia.com/gpu.count": "1",
-                "feature.node.kubernetes.io/pci-10de.present": "true",
-            },
+            capacity="spot" if i >= 4 else "on-demand",
+            extra=gpu_labels(product, "535.86.10" if i == 5 else "535.104.05"),
         ))
 
     # one canary node in the cpu pool

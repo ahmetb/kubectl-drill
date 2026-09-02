@@ -10,9 +10,10 @@
 Output img/demo.gif
 
 Set Shell bash
-Set FontSize 14
-Set Width 1400
-Set Height 1050
+Set FontSize 16
+Set Width 1200
+Set Height 900
+Set LineHeight 1.2
 Set TypingSpeed 25ms
 Set Theme "Catppuccin Mocha"
 

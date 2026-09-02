@@ -56,6 +56,23 @@ check "stdin input"           "4 nodes · 10 distinct keys"                 bash
 check "selector in file mode" "2 nodes · 10 distinct keys"                 $BIN $F -l kubernetes.io/arch=amd64
 check "bad selector"          "invalid selector"                           $BIN $F -l '==bogus=='
 check "multi-doc yaml"        "2 pods"                                     $BIN -f testdata/pods.yaml
+check "version output"       "kubectl-labels"                             $BIN version
+
+# value tables cap at 50 rows; --all lifts the cap
+MANY=$(mktemp -d)
+trap 'rm -rf "$MANY"' EXIT
+for i in $(seq 60); do
+  printf 'apiVersion: v1\nkind: Node\nmetadata:\n  name: node-%d\n  labels:\n    k: v%d\n---\n' "$i" "$i"
+done > "$MANY/many.yaml"
+check "value table caps"      "more values hidden · use --all to show"     $BIN -f "$MANY/many.yaml" k
+check "value table --all"     "60 distinct values"                        $BIN -f "$MANY/many.yaml" --all k
+
+# resources with no labels at all report it honestly, with a singular noun
+BARE=$(mktemp)
+trap 'rm -f "$BARE"' EXIT
+printf 'apiVersion: v1\nkind: Node\nmetadata:\n  name: bare\n' > "$BARE"
+check "singular set noun"     "1 node · 0 distinct keys"                  $BIN -f "$BARE"
+check "unlabeled set"         "none of the 1 node carry any labels"        $BIN -f "$BARE"
 
 # negative cases
 check_fails "no args errors"        $BIN
