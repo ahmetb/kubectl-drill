@@ -22,6 +22,8 @@ comma-joined blob per line — you can't see which keys exist, which values
 matter, or which nodes differ. `kubectl labels` turns that blob into a pivot
 table you can drill into.
 
+![demo](img/demo.gif)
+
 ## Usage
 
 Query resources with the classic `kubectl get` selectors, then pivot:
