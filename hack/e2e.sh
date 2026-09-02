@@ -77,6 +77,8 @@ check "unlabeled set"         "none of the 1 node carry any labels"        $BIN 
 # negative cases
 check_fails "no args errors"        $BIN
 check_fails "too many args"         $BIN $F extra1 extra2 extra3
+check_fails "bad output format"    $BIN $F -o wide
+check_fails "bad sort-by"          $BIN $F --sort-by=bogus
 
 # --vary output must NOT contain the uniform key
 out=$($BIN $F nodes/node-2 --vary 2>&1)

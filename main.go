@@ -189,6 +189,17 @@ func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
 		color.NoColor = true
 	}
 
+	switch outputFormat {
+	case "", "json", "yaml":
+	default:
+		return fmt.Errorf("unsupported output format %q (only json, yaml)", outputFormat)
+	}
+	switch sortBy {
+	case "", "name", "coverage", "cardinality":
+	default:
+		return fmt.Errorf("unsupported --sort-by %q (only name, coverage, cardinality)", sortBy)
+	}
+
 	fileMode := len(filenameOpts.Filenames) > 0 || filenameOpts.Kustomize != ""
 	if fileMode && len(args) > 1 {
 		return fmt.Errorf("with -f/--filename, specify at most one positional argument (KEY or KIND/NAME)")
