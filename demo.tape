@@ -32,22 +32,22 @@ Enter
 Show
 
 # 1. the pain: every node carries 40+ labels
-Type "# every node carries 40+ labels; --show-labels is a wall of text:"
-Sleep 400ms
+Type "# YOUR NODE LABELS PROBABLY LOOK LIKE THIS:
+Sleep 200ms
 Enter
 Type "kubectl get nodes --show-labels | head -3"
-Sleep 500ms
+Sleep 300ms
 Enter
-Sleep 3s
+Sleep 1500ms
 
 # 2. the interactive browser: drill, filter, vary, copy
 Type "clear"
 Enter
-Type "# kubectl labels browse: drill prefix > key > value > resources"
-Sleep 400ms
+Type "# EXPLORE INTERACTIVELY: prefix > key > value"
+Sleep 200ms
 Enter
 Type "kubectl labels browse nodes"
-Sleep 500ms
+Sleep 300ms
 Enter
 Sleep 2s
 Down
@@ -59,7 +59,7 @@ Sleep 300ms
 Down
 Sleep 500ms
 Right
-Sleep 700ms
+Sleep 300ms
 Right
 Sleep 700ms
 Down
@@ -67,18 +67,4 @@ Sleep 300ms
 Down
 Sleep 500ms
 Right
-Sleep 1200ms
-Type "/"
-Sleep 500ms
-Type "34"
-Sleep 1000ms
-Type "x"
-Sleep 800ms
-Type "v"
-Sleep 800ms
-Type "v"
-Sleep 800ms
-Type "c"
-Sleep 1500ms
-Type "q"
-Sleep 600ms
+Sleep 2s

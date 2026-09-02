@@ -26,7 +26,15 @@ table you can drill into.
 
 ## Usage
 
-Query resources with the classic `kubectl get` selectors, then pivot:
+Jump straight into the interactive browser (TUI) to drill
+**prefix → key → value → resources**:
+
+```console
+# Explore interactively (TUI)
+kubectl labels browse nodes
+```
+
+Or query directly with the classic `kubectl get` selectors and pivot:
 
 ```console
 # Which label keys exist on nodes, and how much do they vary?
@@ -43,14 +51,35 @@ kubectl labels nodes/node-1 --vary
 
 # What differs among these pods?
 kubectl labels pods -n prod -l app=web --vary
-
-# Explore interactively (TUI)
-kubectl labels browse nodes
 ```
 
 Selecting resources works exactly like `kubectl get`: `TYPE`, `TYPE/NAME`,
 `-l/--selector`, `-n/--namespace`, `-A/--all-namespaces`, and `-f/--filename`
 (manifests are read fully offline; `-` reads stdin).
+
+### Interactive browser
+
+`kubectl labels browse <type>` (or `-i` on any query) opens a Miller-columns
+TUI: drill **prefix → key → value → resources** (arrows, `hjkl`, `tab`; `esc`
+steps back), filter any column with `/`, toggle distinctive-only with `v`,
+and copy the implied `-l key=value` selector with `c` to reuse in
+`kubectl get`.
+
+It is fully mouse-driven, too:
+
+- **Click** a row to focus its column and select it — the columns to its
+  right rebuild instantly, so you can jump straight to a value in one click.
+- **Click** a column's title to focus it, and the **scroll wheel** scrolls
+  whichever column you hover.
+- Click the **magnifier** ("") at the right edge of a column header to
+  search within that column (same as typing `/` there).
+- An applied column filter shows as a "" chip; click the red **``** button next to it to discard it instantly. `x` clears the focused column's
+  filter, `X` clears every filter, and `esc` clears the filter before
+  stepping back.
+
+Icons use [Nerd Font](https://www.nerdfonts.com/) glyphs — a Nerd-patched
+font (e.g. **Hack Nerd Font**) renders them as icons; other fonts may show
+placeholder boxes for the icons while all text stays readable.
 
 ### Key summary
 
@@ -89,30 +118,6 @@ cpu    2      ██████████████████████
 arm    1      ████████████
 missing on 1: node-3
 ```
-
-### Interactive browser
-
-`kubectl labels browse <type>` (or `-i` on any query) opens a Miller-columns
-TUI: drill **prefix → key → value → resources** (arrows, `hjkl`, `tab`; `esc`
-steps back), filter any column with `/`, toggle distinctive-only with `v`,
-and copy the implied `-l key=value` selector with `c` to reuse in
-`kubectl get`.
-
-It is fully mouse-driven, too:
-
-- **Click** a row to focus its column and select it — the columns to its
-  right rebuild instantly, so you can jump straight to a value in one click.
-- **Click** a column's title to focus it, and the **scroll wheel** scrolls
-  whichever column you hover.
-- Click the **magnifier** ("") at the right edge of a column header to
-  search within that column (same as typing `/` there).
-- An applied column filter shows as a "" chip; click the red **``** button next to it to discard it instantly. `x` clears the focused column's
-  filter, `X` clears every filter, and `esc` clears the filter before
-  stepping back.
-
-Icons use [Nerd Font](https://www.nerdfonts.com/) glyphs — a Nerd-patched
-font (e.g. **Hack Nerd Font**) renders them as icons; other fonts may show
-placeholder boxes for the icons while all text stays readable.
 
 ## Output formats
 
