@@ -33,8 +33,14 @@ func TestProgramEndToEnd(t *testing.T) {
 		return strings.Contains(string(b), "PREFIXES")
 	}, teatest.WithCheckInterval(50*time.Millisecond), teatest.WithDuration(5*time.Second))
 
-	// drill: prefixes -> keys -> values, toggle vary, then quit
-	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
+	// click the first KEYS row to focus it and select; the footer should
+	// then show the implied label selector
+	tm.Send(tea.MouseMsg{X: 35, Y: 2, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return strings.Contains(string(b), "selector:")
+	}, teatest.WithCheckInterval(50*time.Millisecond), teatest.WithDuration(5*time.Second))
+
+	// drill into values, toggle vary, then quit
 	tm.Send(tea.KeyMsg{Type: tea.KeyRight})
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("v")})
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("v")})

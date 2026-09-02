@@ -98,6 +98,22 @@ steps back), filter any column with `/`, toggle distinctive-only with `v`,
 and copy the implied `-l key=value` selector with `c` to reuse in
 `kubectl get`.
 
+It is fully mouse-driven, too:
+
+- **Click** a row to focus its column and select it — the columns to its
+  right rebuild instantly, so you can jump straight to a value in one click.
+- **Click** a column's title to focus it, and the **scroll wheel** scrolls
+  whichever column you hover.
+- Click the **magnifier** ("") at the right edge of a column header to
+  search within that column (same as typing `/` there).
+- An applied column filter shows as a "" chip; click the red **``** button next to it to discard it instantly. `x` clears the focused column's
+  filter, `X` clears every filter, and `esc` clears the filter before
+  stepping back.
+
+Icons use [Nerd Font](https://www.nerdfonts.com/) glyphs — a Nerd-patched
+font (e.g. **Hack Nerd Font**) renders them as icons; other fonts may show
+placeholder boxes for the icons while all text stays readable.
+
 ## Output formats
 
 Add `-o json` or `-o yaml` to any view for scripting:
