@@ -35,34 +35,36 @@ check_fails() { # name, command...
 F="-f testdata/nodes.json"
 
 check "labels mode arg"     "4 nodes · 10 distinct keys · 9 distinctive"  $BIN labels $F
-check "labels subcommand"   "Drill into resource labels (the default field)"  $BIN labels --help
+check "label singular alias" "4 nodes · 10 distinct keys · 9 distinctive"  $BIN label $F
+check "annotation alias"     "4 nodes · 3 distinct keys · 2 distinctive"  $BIN annotation $F
+check "labels subcommand"   "Drill into resource labels"                  $BIN labels --help
 check "annotations subcommand" "Drill into resource annotations"          $BIN annotations --help
 check "annotations summary" "4 nodes · 3 distinct keys · 2 distinctive"  $BIN annotations $F
 check "annotations uniform"  "1 uniform key hidden"                       $BIN annotations $F
 check "annotations values"  "present on 3/4 nodes · 3 distinct values"   $BIN annotations $F example.com/cost-center
 check "annotations missing" "missing on 1: node-3"                       $BIN annotations $F example.com/cost-center
-check "keys summary header"   "4 nodes · 10 distinct keys · 9 distinctive" $BIN $F
-check "identity detection"    "kubernetes.io/hostname  (identity)"         $BIN $F
-check "uniform hidden"        "1 uniform key hidden"                      $BIN $F
-check "all shows uniform"     "node-init.example.com/ready"                $BIN $F --all
-check "group prefix"          "feature.node.kubernetes.io/ (3 keys)"       $BIN $F --group-prefix
-check "sort by name"          "example.com/pool"                           $BIN $F --sort-by=name
-check "values distribution"   "present on 3/4 nodes · 2 distinct values"   $BIN $F example.com/pool
-check "values missing"        "missing on 1: node-3"                       $BIN $F example.com/pool
-check "absent key"            "no nodes carry this label key"              $BIN $F does.not/exist
-check "single resource list"  "kubernetes.io/arch=arm64"                   $BIN -f testdata/nodes.json nodes/node-2
-check "vary vs peers"         "kubernetes.io/arch=arm64"                   $BIN $F nodes/node-2 --vary
-check "vary hides uniform"    "node-2"                                     $BIN $F nodes/node-2 --vary
-check "json output"           '"resources": 4'                             $BIN $F -o json
-check "yaml output"           "cardinality:"                               $BIN $F -o yaml
+check "keys summary header"   "4 nodes · 10 distinct keys · 9 distinctive" $BIN labels $F
+check "identity detection"    "kubernetes.io/hostname  (identity)"         $BIN labels $F
+check "uniform hidden"        "1 uniform key hidden"                      $BIN labels $F
+check "all shows uniform"     "node-init.example.com/ready"                $BIN labels $F --all
+check "group prefix"          "feature.node.kubernetes.io/ (3 keys)"       $BIN labels $F --group-prefix
+check "sort by name"          "example.com/pool"                           $BIN labels $F --sort-by=name
+check "values distribution"   "present on 3/4 nodes · 2 distinct values"   $BIN labels $F example.com/pool
+check "values missing"        "missing on 1: node-3"                       $BIN labels $F example.com/pool
+check "absent key"            "no nodes carry this label key"              $BIN labels $F does.not/exist
+check "single resource list"  "kubernetes.io/arch=arm64"                   $BIN labels -f testdata/nodes.json nodes/node-2
+check "vary vs peers"         "kubernetes.io/arch=arm64"                   $BIN labels $F nodes/node-2 --vary
+check "vary hides uniform"    "node-2"                                     $BIN labels $F nodes/node-2 --vary
+check "json output"           '"resources": 4'                             $BIN labels $F -o json
+check "yaml output"           "cardinality:"                               $BIN labels $F -o yaml
 check "keys alias"            "10 distinct keys"                           $BIN keys $F
 check "values alias"          "2 distinct values"                          $BIN values $F example.com/pool
 check "list alias"            "kubernetes.io/hostname=node-0"              $BIN list $F
-check "no tips when piped"    "distinctive"                                $BIN $F
-check "stdin input"           "4 nodes · 10 distinct keys"                 bash -c "cat testdata/nodes.json | $BIN -f -"
-check "selector in file mode" "2 nodes · 10 distinct keys"                 $BIN $F -l kubernetes.io/arch=amd64
-check "bad selector"          "invalid selector"                           $BIN $F -l '==bogus=='
-check "multi-doc yaml"        "2 pods"                                     $BIN -f testdata/pods.yaml
+check "no tips when piped"    "distinctive"                                $BIN labels $F
+check "stdin input"           "4 nodes · 10 distinct keys"                 bash -c "cat testdata/nodes.json | $BIN labels -f -"
+check "selector in file mode" "2 nodes · 10 distinct keys"                 $BIN labels $F -l kubernetes.io/arch=amd64
+check "bad selector"          "invalid selector"                           $BIN labels $F -l '==bogus=='
+check "multi-doc yaml"        "2 pods"                                     $BIN labels -f testdata/pods.yaml
 check "version output"       "kubectl-drill"                              $BIN version
 
 # value tables cap at 50 rows; --all lifts the cap
@@ -71,24 +73,25 @@ trap 'rm -rf "$MANY"' EXIT
 for i in $(seq 60); do
   printf 'apiVersion: v1\nkind: Node\nmetadata:\n  name: node-%d\n  labels:\n    k: v%d\n---\n' "$i" "$i"
 done > "$MANY/many.yaml"
-check "value table caps"      "more values hidden · use --all to show"     $BIN -f "$MANY/many.yaml" k
-check "value table --all"     "60 distinct values"                        $BIN -f "$MANY/many.yaml" --all k
+check "value table caps"      "more values hidden · use --all to show"     $BIN labels -f "$MANY/many.yaml" k
+check "value table --all"     "60 distinct values"                        $BIN labels -f "$MANY/many.yaml" --all k
 
 # resources with no labels at all report it honestly, with a singular noun
 BARE=$(mktemp)
 trap 'rm -f "$BARE"' EXIT
 printf 'apiVersion: v1\nkind: Node\nmetadata:\n  name: bare\n' > "$BARE"
-check "singular set noun"     "1 node · 0 distinct keys"                  $BIN -f "$BARE"
-check "unlabeled set"         "none of the 1 node carry any labels"        $BIN -f "$BARE"
+check "singular set noun"     "1 node · 0 distinct keys"                  $BIN labels -f "$BARE"
+check "unlabeled set"         "none of the 1 node carry any labels"        $BIN labels -f "$BARE"
 
 # negative cases
 check_fails "no args errors"        $BIN
-check_fails "too many args"         $BIN $F extra1 extra2 extra3
-check_fails "bad output format"    $BIN $F -o wide
-check_fails "bad sort-by"          $BIN $F --sort-by=bogus
+check_fails "field word required" $BIN -f testdata/nodes.json
+check_fails "too many args"         $BIN labels $F extra1 extra2 extra3
+check_fails "bad output format"    $BIN labels $F -o wide
+check_fails "bad sort-by"          $BIN labels $F --sort-by=bogus
 
 # --vary output must NOT contain the uniform key
-out=$($BIN $F nodes/node-2 --vary 2>&1)
+out=$($BIN labels $F nodes/node-2 --vary 2>&1)
 if [[ "$out" == *"node-init.example.com/ready"* ]]; then
   echo "FAIL vary excludes uniform key"; FAILURES=$((FAILURES+1))
 else
@@ -96,7 +99,7 @@ else
 fi
 
 # tip must never appear when piped
-out=$($BIN $F 2>&1)
+out=$($BIN labels $F 2>&1)
 if [[ "$out" == *"tip:"* ]]; then
   echo "FAIL tip shown when piped"; FAILURES=$((FAILURES+1))
 else

@@ -40,21 +40,11 @@ Sleep 300ms
 Enter
 Sleep 1500ms
 
-# 2. boring mode: ask a question, get a pivot table
+# don't show the --boring mode
+# 2. the drill-down: prefix > key > value > resources
 Type "clear"
 Enter
-Type "# OR GET STRAIGHT TO THE POINT -- NO DRILLING REQUIRED:"
-Sleep 200ms
-Enter
-Type "kubectl drill labels nodes --boring"
-Sleep 300ms
-Enter
-Sleep 3s
-
-# 3. the drill-down (the default): prefix > key > value > resources
-Type "clear"
-Enter
-Type "# ...OR JUST DRILL: PREFIX > KEY > VALUE > RESOURCES"
+Type "# ...DRILL INTO THE NODE LABELS:"
 Sleep 200ms
 Enter
 Type "kubectl drill nodes"

@@ -30,13 +30,15 @@ Jump straight into the interactive drill-down (the default) and explore
 **prefix → key → value → resources**:
 
 ```console
-# Labels (the default field)
-kubectl drill nodes
+# Labels
 kubectl drill labels nodes
 
 # Annotations instead
 kubectl drill annotations pods
 ```
+
+The field word is always required — the singular forms work as aliases
+(`kubectl drill label nodes`, `kubectl drill annotation pods`).
 
 Prefer static, scriptable tables? Add `--boring` (it's also implied when
 you pipe the output or use `-o json`/`-o yaml`):
@@ -64,7 +66,7 @@ Selecting resources works exactly like `kubectl get`: `TYPE`, `TYPE/NAME`,
 
 ### Interactive drill-down
 
-`kubectl drill <type>` (or `kubectl drill labels <type>`) opens a
+`kubectl drill labels <type>` (or `kubectl drill annotations <type>`) opens a
 Miller-columns TUI: drill **prefix → key → value → resources** (arrows,
 `hjkl`, `tab`; `esc` steps back), filter any column with `/`, toggle
 distinctive-only with `v`, and copy the implied `-l key=value` selector with

@@ -66,13 +66,15 @@ selector, namespace, or file) and pivots their labels or annotations:
 which keys exist, their cardinality and coverage, how values are
 distributed, and what each resource carries.
 
+The first argument picks what to drill into — "labels" or
+"annotations" (the singular forms work as aliases).
+
 The default view is the interactive drill-down (prefix > key > value >
 resource). Pass --boring for the static, scriptable tables.
 
 With no KEY it summarizes keys across the set. With KEY it shows the
 value distribution. With TYPE/NAME it lists one resource's pairs.`,
 		Example: `  # Drill into node labels (the default is interactive)
-  kubectl drill nodes
   kubectl drill labels nodes
 
   # Static, scriptable key summary
@@ -91,17 +93,20 @@ value distribution. With TYPE/NAME it lists one resource's pairs.`,
   kubectl drill labels pods -n prod -l app=web --boring --vary`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Args:          cobra.MaximumNArgs(2),
+		Args:          cobra.ArbitraryArgs,
 		Version:       version,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(configFlags, analysis.FieldLabels, args)
+			// The field word is always required; cobra routes "labels"/"annotations"
+			// to their subcommands, so reaching here means it is missing.
+			return fmt.Errorf("specify what to drill into: `kubectl drill labels TYPE[/NAME]` or `kubectl drill annotations TYPE[/NAME]` (see --help)")
 		},
 	}
 	root.SetVersionTemplate(versionString())
 
-	fieldCmd := func(field analysis.Field, use, short string) *cobra.Command {
+	fieldCmd := func(field analysis.Field, use string, aliases []string, short string) *cobra.Command {
 		return &cobra.Command{
 			Use:           use,
+			Aliases:       aliases,
 			Short:         short,
 			SilenceUsage:  true,
 			SilenceErrors: true,
@@ -111,8 +116,8 @@ value distribution. With TYPE/NAME it lists one resource's pairs.`,
 			},
 		}
 	}
-	labelsCmd := fieldCmd(analysis.FieldLabels, "labels TYPE[/NAME] [KEY]", "Drill into resource labels (the default field)")
-	annotationsCmd := fieldCmd(analysis.FieldAnnotations, "annotations TYPE[/NAME] [KEY]", "Drill into resource annotations")
+	labelsCmd := fieldCmd(analysis.FieldLabels, "labels TYPE[/NAME] [KEY]", []string{"label"}, "Drill into resource labels")
+	annotationsCmd := fieldCmd(analysis.FieldAnnotations, "annotations TYPE[/NAME] [KEY]", []string{"annotation"}, "Drill into resource annotations")
 
 	staticRun := func(cmd *cobra.Command, args []string) error {
 		forceStatic = true
