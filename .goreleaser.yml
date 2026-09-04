@@ -1,8 +1,9 @@
 version: 2
+project_name: kubectl-drill
 builds:
-- id: kubectl-labels
+- id: kubectl-drill
   main: .
-  binary: kubectl-labels
+  binary: kubectl-drill
   env:
   - CGO_ENABLED=0
   goos:
@@ -20,7 +21,7 @@ builds:
 
 archives:
 - builds:
-  - kubectl-labels
+  - kubectl-drill
   name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
   wrap_in_directory: false
   format: tar.gz

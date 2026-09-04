@@ -17,5 +17,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-kind delete cluster --name labels-demo
+kind delete cluster --name drill-demo
 rm -f hack/demo/kubeconfig

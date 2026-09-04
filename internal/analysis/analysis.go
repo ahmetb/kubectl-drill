@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package analysis computes label statistics over a set of resources.
-// It is deliberately free of any Kubernetes client dependencies so it
-// can be unit-tested with plain data.
+// Package analysis computes metadata (label/annotation) statistics over a
+// set of resources. It is deliberately free of any Kubernetes client
+// dependencies so it can be unit-tested with plain data.
 package analysis
 
 import (
@@ -22,12 +22,47 @@ import (
 	"strings"
 )
 
+// Field selects which metadata map of a resource is being analyzed.
+type Field int
+
+const (
+	FieldLabels Field = iota
+	FieldAnnotations
+)
+
+// String returns the field's plural name ("labels"/"annotations") as used
+// in output like "none of the nodes carry any labels".
+func (f Field) String() string {
+	if f == FieldAnnotations {
+		return "annotations"
+	}
+	return "labels"
+}
+
+// Noun returns the singular form ("label"/"annotation") for messages like
+// "no nodes carry this label key".
+func (f Field) Noun() string {
+	if f == FieldAnnotations {
+		return "annotation"
+	}
+	return "label"
+}
+
+// Map returns the metadata map of r that f selects.
+func (r Resource) Map(f Field) map[string]string {
+	if f == FieldAnnotations {
+		return r.Annotations
+	}
+	return r.Labels
+}
+
 // Resource is a single Kubernetes object reduced to what this tool needs.
 type Resource struct {
-	Kind      string
-	Namespace string
-	Name      string
-	Labels    map[string]string
+	Kind        string
+	Namespace   string
+	Name        string
+	Labels      map[string]string
+	Annotations map[string]string
 }
 
 // String returns "namespace/name" for namespaced resources, else "name".
@@ -38,9 +73,11 @@ func (r Resource) String() string {
 	return r.Name
 }
 
-// Set is the queried collection of resources being analyzed.
+// Set is the queried collection of resources being analyzed, plus the
+// metadata field (labels or annotations) the analysis targets.
 type Set struct {
 	Resources []Resource
+	Field     Field
 }
 
 // Total returns the number of resources in the set.
@@ -52,7 +89,7 @@ type ValueCount struct {
 	Count int    `json:"count"`
 }
 
-// KeyStat describes one label key across the whole set.
+// KeyStat describes one metadata key across the whole set.
 type KeyStat struct {
 	Key         string       `json:"key"`
 	Coverage    int          `json:"coverage"`    // resources carrying this key
@@ -108,13 +145,13 @@ func ShortKey(key string) string {
 	return key
 }
 
-// KeyStats computes statistics for every label key in the set.
+// KeyStats computes statistics for every key of the set's field in the set.
 func (s Set) KeyStats() []KeyStat {
 	type valCounts map[string]int
 	byKey := make(map[string]valCounts)
 	coverage := make(map[string]int)
 	for _, r := range s.Resources {
-		for k, v := range r.Labels {
+		for k, v := range r.Map(s.Field) {
 			if byKey[k] == nil {
 				byKey[k] = make(valCounts)
 			}
@@ -225,7 +262,7 @@ func GroupByPrefix(stats []KeyStat) []PrefixGroup {
 	return out
 }
 
-// ValueStat describes one value of a label key.
+// ValueStat describes one value of a metadata key.
 type ValueStat struct {
 	Value     string     `json:"value"`
 	Count     int        `json:"count"`
@@ -240,13 +277,13 @@ type ValueStats struct {
 	Missing []Resource  `json:"missing,omitempty"`
 }
 
-// ValueStats computes the value distribution for key. includeResources
-// controls whether per-value resource lists are populated.
+// ValueStats computes the value distribution for key in the set's field.
+// includeResources controls whether per-value resource lists are populated.
 func (s Set) ValueStats(key string, includeResources bool) ValueStats {
 	byValue := make(map[string][]Resource)
 	var missing []Resource
 	for _, r := range s.Resources {
-		if v, ok := r.Labels[key]; ok {
+		if v, ok := r.Map(s.Field)[key]; ok {
 			byValue[v] = append(byValue[v], r)
 		} else {
 			missing = append(missing, r)

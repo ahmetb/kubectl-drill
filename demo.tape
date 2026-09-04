@@ -1,9 +1,9 @@
-# kubectl-labels demo tape — records img/demo.gif
+# kubectl-drill demo tape — records img/demo.gif
 #
 # Requires: vhs (https://github.com/charmbracelet/vhs), a built binary,
 # the demo kind cluster, and Hack Nerd Font (for the TUI icons):
 #   brew install font-hack-nerd-font
-#   go build -o kubectl-labels .
+#   go build -o kubectl-drill .
 #   hack/demo/up.sh     # create kind cluster with fake label-heavy nodes
 #   vhs demo.tape
 #   hack/demo/down.sh   # tear down when done
@@ -40,13 +40,24 @@ Sleep 300ms
 Enter
 Sleep 1500ms
 
-# 2. the interactive browser: drill, filter, vary, copy
+# 2. boring mode: ask a question, get a pivot table
 Type "clear"
 Enter
-Type "# EXPLORE INTERACTIVELY: prefix > key > value"
+Type "# OR GET STRAIGHT TO THE POINT -- NO DRILLING REQUIRED:"
 Sleep 200ms
 Enter
-Type "kubectl labels browse nodes"
+Type "kubectl drill labels nodes --boring"
+Sleep 300ms
+Enter
+Sleep 3s
+
+# 3. the drill-down (the default): prefix > key > value > resources
+Type "clear"
+Enter
+Type "# ...OR JUST DRILL: PREFIX > KEY > VALUE > RESOURCES"
+Sleep 200ms
+Enter
+Type "kubectl drill nodes"
 Sleep 300ms
 Enter
 Sleep 2s

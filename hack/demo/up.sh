@@ -22,7 +22,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-CLUSTER=labels-demo
+CLUSTER=drill-demo
 KCFG=hack/demo/kubeconfig
 
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
@@ -64,4 +64,4 @@ KUBECONFIG="$KCFG" kubectl label --overwrite node "$CLUSTER-control-plane" \
 echo
 echo "demo cluster ready. use it with:"
 echo "  export KUBECONFIG=$PWD/$KCFG"
-echo "  kubectl labels nodes"
+echo "  kubectl drill labels nodes"

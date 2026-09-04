@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ahmetb/kubectl-labels/internal/analysis"
+	"github.com/ahmetb/kubectl-drill/internal/analysis"
 )
 
 func TestFromFilesJSON(t *testing.T) {

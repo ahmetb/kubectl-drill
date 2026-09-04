@@ -1,15 +1,15 @@
-# kubectl labels
+# kubectl drill
 
-[![ci](https://github.com/ahmetb/kubectl-labels/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmetb/kubectl-labels/actions/workflows/ci.yml)
-[![krew](https://img.shields.io/badge/krew-labels-blue)](https://krew.sigs.k8s.io/)
+[![ci](https://github.com/ahmetb/kubectl-drill/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmetb/kubectl-drill/actions/workflows/ci.yml)
+[![krew](https://img.shields.io/badge/krew-drill-blue)](https://krew.sigs.k8s.io/)
 
-A kubectl plugin to explore and pivot Kubernetes resource labels — built for
-resources that carry *many* labels, where `kubectl get --show-labels` becomes
-an unreadable wall of text.
+A kubectl plugin to drill into Kubernetes resource labels and annotations —
+built for resources that carry *many* of them, where
+`kubectl get --show-labels` becomes an unreadable wall of text.
 
 It answers three questions about any set of resources:
 
-- **Which label keys exist?** With what coverage and cardinality?
+- **Which keys exist?** With what coverage and cardinality?
 - **How is a key distributed?** Which values exist, on how many resources?
 - **What makes this resource different?** Which of its labels actually vary
   across the set?
@@ -19,51 +19,57 @@ It answers three questions about any set of resources:
 Node-feature-discovery, Karpenter, and operators can put 50–100+ labels on a
 single object. `kubectl get nodes --show-labels` prints them as one
 comma-joined blob per line — you can't see which keys exist, which values
-matter, or which nodes differ. `kubectl labels` turns that blob into a pivot
+matter, or which nodes differ. `kubectl drill` turns that blob into a pivot
 table you can drill into.
 
 ![demo](img/demo.gif)
 
 ## Usage
 
-Jump straight into the interactive browser (TUI) to drill
+Jump straight into the interactive drill-down (the default) and explore
 **prefix → key → value → resources**:
 
 ```console
-# Explore interactively (TUI)
-kubectl labels browse nodes
+# Labels (the default field)
+kubectl drill nodes
+kubectl drill labels nodes
+
+# Annotations instead
+kubectl drill annotations pods
 ```
 
-Or query directly with the classic `kubectl get` selectors and pivot:
+Prefer static, scriptable tables? Add `--boring` (it's also implied when
+you pipe the output or use `-o json`/`-o yaml`):
 
 ```console
 # Which label keys exist on nodes, and how much do they vary?
-kubectl labels nodes
+kubectl drill labels nodes --boring
 
 # How is a label distributed across the set?
-kubectl labels nodes topology.kubernetes.io/zone
+kubectl drill labels nodes --boring topology.kubernetes.io/zone
 
 # Labels of a single resource, one per line
-kubectl labels nodes/node-1
+kubectl drill labels nodes/node-1 --boring
 
 # What makes THIS node different from its peers?
-kubectl labels nodes/node-1 --vary
+kubectl drill labels nodes/node-1 --boring --vary
 
 # What differs among these pods?
-kubectl labels pods -n prod -l app=web --vary
+kubectl drill labels pods -n prod -l app=web --boring --vary
 ```
 
 Selecting resources works exactly like `kubectl get`: `TYPE`, `TYPE/NAME`,
 `-l/--selector`, `-n/--namespace`, `-A/--all-namespaces`, and `-f/--filename`
 (manifests are read fully offline; `-` reads stdin).
 
-### Interactive browser
+### Interactive drill-down
 
-`kubectl labels browse <type>` (or `-i` on any query) opens a Miller-columns
-TUI: drill **prefix → key → value → resources** (arrows, `hjkl`, `tab`; `esc`
-steps back), filter any column with `/`, toggle distinctive-only with `v`,
-and copy the implied `-l key=value` selector with `c` to reuse in
-`kubectl get`.
+`kubectl drill <type>` (or `kubectl drill labels <type>`) opens a
+Miller-columns TUI: drill **prefix → key → value → resources** (arrows,
+`hjkl`, `tab`; `esc` steps back), filter any column with `/`, toggle
+distinctive-only with `v`, and copy the implied `-l key=value` selector with
+`c` to reuse in `kubectl get` (labels only — label selectors can't match
+annotations).
 
 It is fully mouse-driven, too:
 
@@ -84,7 +90,7 @@ placeholder boxes for the icons while all text stays readable.
 ### Key summary
 
 ```console
-$ kubectl labels nodes
+$ kubectl drill labels nodes --boring
 4 nodes · 10 distinct keys · 9 distinctive
 
 KEY                                              COVERAGE  VALUES  SAMPLE VALUES
@@ -100,17 +106,18 @@ feature.node.kubernetes.io/cpu-cpuid.ADX         1/4       1       true
 … 1 uniform key hidden · use --all to show
 ```
 
-Labels identical on every resource are hidden by default (`--all` shows them;
+Keys identical on every resource are hidden by default (`--all` shows them;
 `--vary` prints only distinctive ones, with no footers, for scripting). Keys
 unique per resource are tagged `(identity)` — they can't group anything.
 `--sort-by=name|coverage|cardinality` and `--group-prefix` control the view.
 Tables adapt to your terminal width; value tables cap at 50 rows (`--all`
-shows the rest).
+shows the rest). Every view works on annotations too: swap `labels` for
+`annotations`.
 
 ### Value distribution
 
 ```console
-$ kubectl labels nodes example.com/pool
+$ kubectl drill labels nodes --boring example.com/pool
 example.com/pool · present on 3/4 nodes · 2 distinct values
 
 VALUE  COUNT  DISTRIBUTION
@@ -121,27 +128,27 @@ missing on 1: node-3
 
 ## Output formats
 
-Add `-o json` or `-o yaml` to any view for scripting:
+Add `-o json` or `-o yaml` to any static view for scripting:
 
 ```console
-$ kubectl labels nodes -o json | jq '.keys[] | select(.cardinality > 10)'
+$ kubectl drill labels nodes --boring -o json | jq '.keys[] | select(.cardinality > 10)'
 ```
 
 ## Tips
 
-On interactive terminals the summary view suggests the equivalent `browse`
-command. Set `KUBECTL_LABELS_NO_TIPS=1` to disable.
+On interactive terminals the `--boring` summary suggests the equivalent
+interactive command. Set `KUBECTL_DRILL_NO_TIPS=1` to disable.
 
 ## Installation
 
 Install using [Krew](https://krew.sigs.k8s.io/):
 
 ```shell
-kubectl krew install labels
+kubectl krew install drill
 ```
 
 Or download the binary from the **Releases** page and move it somewhere on
-your `PATH` as `kubectl-labels`. Verify with `kubectl labels version`.
+your `PATH` as `kubectl-drill`. Verify with `kubectl drill version`.
 
 ## Development
 

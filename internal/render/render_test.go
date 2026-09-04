@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ahmetb/kubectl-labels/internal/analysis"
+	"github.com/ahmetb/kubectl-drill/internal/analysis"
 )
 
 func setOf(n int) analysis.Set {
@@ -155,5 +155,63 @@ func TestSamplesEmptyValueShown(t *testing.T) {
 	}
 	if got := samples(k, maxSamples); !strings.Contains(got, `""`) {
 		t.Errorf("empty value should render as \"\": %q", got)
+	}
+}
+
+func TestKeySummaryAnnotations(t *testing.T) {
+	// no annotations at all
+	set := analysis.Set{Resources: []analysis.Resource{{Kind: "Node", Name: "node-0"}},
+		Field: analysis.FieldAnnotations}
+	var buf bytes.Buffer
+	if err := KeySummary(&buf, set, Options{SetLabel: "nodes"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "none of the 1 node carry any annotations") {
+		t.Errorf("unexpected output\n%s", buf.String())
+	}
+
+	// uniform annotations are hidden, --all shows them
+	set = analysis.Set{Field: analysis.FieldAnnotations, Resources: []analysis.Resource{
+		{Kind: "Node", Name: "node-0", Annotations: map[string]string{"example.com/owner": "platform"}},
+		{Kind: "Node", Name: "node-1", Annotations: map[string]string{"example.com/owner": "platform"}},
+	}}
+	buf.Reset()
+	if err := KeySummary(&buf, set, Options{SetLabel: "nodes"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "all annotations are identical across the set") {
+		t.Errorf("unexpected output\n%s", buf.String())
+	}
+}
+
+func TestValueDistributionAnnotations(t *testing.T) {
+	set := analysis.Set{Field: analysis.FieldAnnotations, Resources: []analysis.Resource{
+		{Kind: "Node", Name: "node-0", Annotations: map[string]string{"example.com/cost-center": "cc-0"}},
+		{Kind: "Node", Name: "node-1", Annotations: map[string]string{"example.com/cost-center": "cc-1"}},
+	}}
+	var buf bytes.Buffer
+	if err := ValueDistribution(&buf, set, "does.not/exist", Options{SetLabel: "nodes"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "no nodes carry this annotation key") {
+		t.Errorf("unexpected output\n%s", buf.String())
+	}
+}
+
+func TestResourceListAnnotations(t *testing.T) {
+	set := analysis.Set{Field: analysis.FieldAnnotations, Resources: []analysis.Resource{
+		{Kind: "Node", Name: "node-0", Annotations: map[string]string{"example.com/owner": "platform"}},
+		{Kind: "Node", Name: "bare"},
+	}}
+	var buf bytes.Buffer
+	if err := ResourceList(&buf, set, set, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "example.com/owner=platform") {
+		t.Errorf("annotation pairs missing\n%s", out)
+	}
+	if !strings.Contains(out, "(no annotations)") {
+		t.Errorf("expected (no annotations) for the bare resource\n%s", out)
 	}
 }

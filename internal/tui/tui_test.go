@@ -21,7 +21,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/ahmetb/kubectl-labels/internal/analysis"
+	"github.com/ahmetb/kubectl-drill/internal/analysis"
 )
 
 func testSet() analysis.Set {
@@ -37,6 +37,43 @@ func testSet() analysis.Set {
 		mk("node-1", "kubernetes.io/hostname", "node-1", "kubernetes.io/os", "linux", "example.com/pool", "cpu", "uniform.io/x", "1"),
 		mk("node-2", "kubernetes.io/hostname", "node-2", "kubernetes.io/os", "linux", "example.com/pool", "arm", "uniform.io/x", "1"),
 	}}
+}
+
+func TestAnnotationsMode(t *testing.T) {
+	mk := func(name, cc string) analysis.Resource {
+		return analysis.Resource{Kind: "Node", Name: name, Annotations: map[string]string{
+			"example.com/owner":       "platform",
+			"example.com/cost-center": cc,
+		}}
+	}
+	set := analysis.Set{Field: analysis.FieldAnnotations, Resources: []analysis.Resource{
+		mk("node-0", "cc-0"),
+		mk("node-1", "cc-1"),
+	}}
+	m := newModel(set)
+	m = update(m, tea.WindowSizeMsg{Width: 120, Height: 40})
+	v := m.View()
+	for _, want := range []string{"annotation keys", "example.com/", "cost-center"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view missing %q\n%s", want, v)
+		}
+	}
+
+	// drill down: values and resources come from the annotation maps
+	m = update(m, special(tea.KeyRight), special(tea.KeyRight))
+	if got := m.selector(); got != "" {
+		t.Errorf("annotations have no -l selector, got %q", got)
+	}
+	m = update(m, special(tea.KeyRight))
+	if n := len(m.cols[3].Items()); n != 1 {
+		t.Errorf("resources with cost-center=cc-0 = %d, want 1", n)
+	}
+
+	// copy is a labels-only feature
+	m = update(m, runeKey("c"))
+	if !strings.Contains(m.status, "labels only") {
+		t.Errorf("status = %q, want the labels-only notice", m.status)
+	}
 }
 
 func runeKey(s string) tea.KeyMsg {
@@ -65,7 +102,7 @@ func TestInitialView(t *testing.T) {
 	m := newModel(testSet())
 	m = update(m, tea.WindowSizeMsg{Width: 120, Height: 40})
 	v := m.View()
-	for _, want := range []string{"PREFIXES", "KEYS", "VALUES", "RESOURCES", "3 resources", "4 keys", "kubernetes.io/", "example.com/"} {
+	for _, want := range []string{"PREFIXES", "KEYS", "VALUES", "RESOURCES", "3 resources", "4 label keys", "kubernetes.io/", "example.com/"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view missing %q\n%s", want, v)
 		}

@@ -211,3 +211,32 @@ func TestDistinctiveAndUniformFilters(t *testing.T) {
 		t.Errorf("uniform: got %+v", got)
 	}
 }
+
+func TestFieldNaming(t *testing.T) {
+	if FieldLabels.String() != "labels" || FieldLabels.Noun() != "label" {
+		t.Errorf("labels naming: %q/%q", FieldLabels.String(), FieldLabels.Noun())
+	}
+	if FieldAnnotations.String() != "annotations" || FieldAnnotations.Noun() != "annotation" {
+		t.Errorf("annotations naming: %q/%q", FieldAnnotations.String(), FieldAnnotations.Noun())
+	}
+}
+
+func TestAnnotationsField(t *testing.T) {
+	rs := []Resource{
+		{Kind: "Pod", Name: "a", Labels: map[string]string{"app": "web"}, Annotations: map[string]string{"c": "x"}},
+		{Kind: "Pod", Name: "b", Labels: map[string]string{"app": "web"}},
+	}
+	s := Set{Resources: rs, Field: FieldAnnotations}
+	stats := s.KeyStats()
+	if len(stats) != 1 || stats[0].Key != "c" || stats[0].Coverage != 1 || stats[0].Cardinality != 1 {
+		t.Fatalf("annotation stats = %+v", stats)
+	}
+	vs := s.ValueStats("c", true)
+	if vs.Present != 1 || len(vs.Values) != 1 || len(vs.Missing) != 1 || vs.Missing[0].Name != "b" {
+		t.Errorf("annotation value stats = %+v", vs)
+	}
+	// the same resources pivot their labels when the field is labels
+	if got := (Set{Resources: rs}).KeyStats(); len(got) != 1 || got[0].Key != "app" {
+		t.Errorf("label stats = %+v, want app only", got)
+	}
+}

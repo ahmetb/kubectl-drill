@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package tui implements the interactive label browser: a Miller-columns
-// drill-down of prefix -> key -> value -> resources.
+// Package tui implements the interactive metadata browser: a Miller-columns
+// drill-down of prefix -> key -> value -> resources, over a set's labels
+// or annotations.
 package tui
 
 import (
@@ -27,7 +28,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/ahmetb/kubectl-labels/internal/analysis"
+	"github.com/ahmetb/kubectl-drill/internal/analysis"
 )
 
 const missingPayload = "\x00missing"
@@ -320,7 +321,7 @@ func (m *model) rebuildResources() {
 	}
 	var items []list.Item
 	for _, r := range m.set.Resources {
-		v, has := r.Labels[keyIt.payload]
+		v, has := r.Map(m.set.Field)[keyIt.payload]
 		if valIt.missing && !has {
 			items = append(items, item{title: r.String(), payload: r.Name})
 		} else if !valIt.missing && has && v == valIt.payload {
@@ -331,7 +332,11 @@ func (m *model) rebuildResources() {
 }
 
 // selector returns the label selector implied by the current selection.
+// It is empty for annotations, which label selectors cannot match.
 func (m model) selector() string {
+	if m.set.Field == analysis.FieldAnnotations {
+		return ""
+	}
 	keyIt, ok := m.selected(1)
 	if !ok || m.focus < 1 {
 		return ""
@@ -446,6 +451,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "c":
+			if m.set.Field == analysis.FieldAnnotations {
+				m.status = icInfo + " -l selectors match labels only"
+				return m, nil
+			}
 			sel := m.selector()
 			if sel == "" {
 				m.status = icInfo + " select a key first"
@@ -597,7 +606,7 @@ func (m model) columnHeader(i int) string {
 func (m model) View() string {
 	total := m.set.Total()
 	stats := m.stats()
-	header := titleStyle.Render(fmt.Sprintf("%s %d resources · %s %d keys", icResources, total, icKeys, len(stats)))
+	header := titleStyle.Render(fmt.Sprintf("%s %d resources · %s %d %s keys", icResources, total, icKeys, len(stats), m.set.Field.Noun()))
 	if m.vary {
 		header += headerStyle.Render("  " + icBolt + " distinctive only — v to toggle")
 	}

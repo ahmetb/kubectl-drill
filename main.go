@@ -26,10 +26,10 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/utils/ptr"
 
-	"github.com/ahmetb/kubectl-labels/internal/analysis"
-	"github.com/ahmetb/kubectl-labels/internal/collect"
-	"github.com/ahmetb/kubectl-labels/internal/render"
-	"github.com/ahmetb/kubectl-labels/internal/tui"
+	"github.com/ahmetb/kubectl-drill/internal/analysis"
+	"github.com/ahmetb/kubectl-drill/internal/collect"
+	"github.com/ahmetb/kubectl-drill/internal/render"
+	"github.com/ahmetb/kubectl-drill/internal/tui"
 )
 
 var (
@@ -44,7 +44,8 @@ var (
 	groupPrefix  bool
 	outputFormat string
 	noColorFlag  bool
-	interactive  bool
+	boringFlag   bool
+	forceStatic  bool // hidden view aliases print tables, never the TUI
 )
 
 // Build information, overridden by goreleaser ldflags.
@@ -58,32 +59,39 @@ func main() {
 	configFlags := genericclioptions.NewConfigFlags(true)
 
 	root := &cobra.Command{
-		Use:   "kubectl-labels TYPE[/NAME] [KEY]",
-		Short: "Explore and pivot Kubernetes resource labels",
-		Long: `kubectl labels queries a set of resources (by type, name, label selector,
-namespace, or file) and pivots their labels: which keys exist, their
-cardinality and coverage, how values are distributed, and what each
-resource carries.
+		Use:   "drill [labels|annotations] TYPE[/NAME] [KEY]",
+		Short: "Drill into Kubernetes resource labels and annotations",
+		Long: `kubectl drill queries a set of resources (by type, name, label
+selector, namespace, or file) and pivots their labels or annotations:
+which keys exist, their cardinality and coverage, how values are
+distributed, and what each resource carries.
 
-With no KEY it summarizes label keys across the set. With KEY it shows
-the value distribution. With TYPE/NAME it lists one resource's labels.`,
-		Example: `  # Which label keys exist on nodes, and how much do they vary?
-  kubectl labels nodes
+The default view is the interactive drill-down (prefix > key > value >
+resource). Pass --boring for the static, scriptable tables.
+
+With no KEY it summarizes keys across the set. With KEY it shows the
+value distribution. With TYPE/NAME it lists one resource's pairs.`,
+		Example: `  # Drill into node labels (the default is interactive)
+  kubectl drill nodes
+  kubectl drill labels nodes
+
+  # Static, scriptable key summary
+  kubectl drill labels nodes --boring
+
+  # Drill into annotations instead
+  kubectl drill annotations pods
 
   # How is a label distributed across nodes?
-  kubectl labels nodes topology.kubernetes.io/zone
+  kubectl drill labels nodes --boring topology.kubernetes.io/zone
 
-  # Labels of one node, one per line
-  kubectl labels nodes/node-1
+  # What makes THIS node different from its peers?
+  kubectl drill labels nodes/node-1 --boring --vary
 
   # What differs among these pods?
-  kubectl labels pods -n prod -l app=web --vary
-
-  # Explore interactively
-  kubectl labels browse nodes`,
+  kubectl drill labels pods -n prod -l app=web --boring --vary`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Args:          cobra.MaximumNArgs(2),
+		Args:          cobra.MaximumNArgs(3),
 		Version:       version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(configFlags, args)
@@ -91,33 +99,23 @@ the value distribution. With TYPE/NAME it lists one resource's labels.`,
 	}
 	root.SetVersionTemplate(versionString())
 
-	browse := &cobra.Command{
-		Use:          "browse TYPE[/NAME]",
-		Short:        "Interactively browse label keys, values and resources",
-		SilenceUsage: true,
-		Args:         cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			interactive = true
-			return run(configFlags, args)
-		},
+	staticRun := func(cmd *cobra.Command, args []string) error {
+		forceStatic = true
+		return run(configFlags, args)
 	}
 	keysAlias := &cobra.Command{
 		Use:          "keys TYPE[/NAME]",
 		Hidden:       true,
 		SilenceUsage: true,
 		Args:         cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(configFlags, args)
-		},
+		RunE:         staticRun,
 	}
 	valuesAlias := &cobra.Command{
 		Use:          "values TYPE[/NAME] KEY",
 		Hidden:       true,
 		SilenceUsage: true,
 		Args:         cobra.RangeArgs(1, 2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(configFlags, args)
-		},
+		RunE:         staticRun,
 	}
 	listAlias := &cobra.Command{
 		Use:          "list TYPE[/NAME]",
@@ -126,12 +124,12 @@ the value distribution. With TYPE/NAME it lists one resource's labels.`,
 		Args:         cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listFlag = true
-			return run(configFlags, args)
+			return staticRun(cmd, args)
 		},
 	}
-	root.AddCommand(browse, keysAlias, valuesAlias, listAlias, &cobra.Command{
+	root.AddCommand(keysAlias, valuesAlias, listAlias, &cobra.Command{
 		Use:          "version",
-		Short:        "Print the kubectl-labels version",
+		Short:        "Print the kubectl-drill version",
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Print(versionString())
@@ -144,14 +142,14 @@ the value distribution. With TYPE/NAME it lists one resource's labels.`,
 	pf.StringSliceVarP(&filenameOpts.Filenames, "filename", "f", nil, "Filename, directory, or URL to files identifying the resources")
 	pf.BoolVar(&filenameOpts.Recursive, "recursive", false, "Process the directory used in -f, --filename recursively")
 	pf.StringVarP(&filenameOpts.Kustomize, "kustomize", "k", "", "Process a kustomization directory")
-	pf.BoolVar(&listFlag, "list", false, "List labels per resource instead of summarizing keys")
-	pf.BoolVar(&varyFlag, "vary", false, "Show only labels that differ across the set (no footers; script-friendly)")
-	pf.BoolVar(&allFlag, "all", false, "Show all label keys, including those identical on every resource")
+	pf.BoolVar(&listFlag, "list", false, "List key/value pairs per resource instead of summarizing keys")
+	pf.BoolVar(&varyFlag, "vary", false, "Show only keys that differ across the set (no footers; script-friendly)")
+	pf.BoolVar(&allFlag, "all", false, "Show all keys, including those identical on every resource")
 	pf.StringVar(&sortBy, "sort-by", "", "Sort keys by: name, coverage, cardinality (default)")
-	pf.BoolVar(&groupPrefix, "group-prefix", false, "Group label keys by their DNS prefix")
+	pf.BoolVar(&groupPrefix, "group-prefix", false, "Group keys by their DNS prefix")
 	pf.StringVarP(&outputFormat, "output", "o", "", "Output format: json, yaml")
 	pf.BoolVar(&noColorFlag, "no-color", false, "Disable colored output")
-	pf.BoolVarP(&interactive, "interactive", "i", false, "Browse the results interactively (same as the browse command)")
+	pf.BoolVar(&boringFlag, "boring", false, "Print static tables instead of the interactive drill-down (implied when piping or using -o)")
 
 	configFlags.AddFlags(pf)
 	if err := root.Execute(); err != nil {
@@ -163,7 +161,7 @@ the value distribution. With TYPE/NAME it lists one resource's labels.`,
 // versionString renders the --version output; commit and date are only
 // shown when set by a real build (not "dev" checkouts).
 func versionString() string {
-	s := "kubectl-labels " + version
+	s := "kubectl-drill " + version
 	if commit != "none" && commit != "" {
 		s += " (" + commit
 		if date != "unknown" && date != "" {
@@ -175,8 +173,17 @@ func versionString() string {
 }
 
 func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
+	// The first positional selects which metadata map to drill into;
+	// "labels" is the default and can be omitted.
+	field := analysis.FieldLabels
+	if len(args) > 0 && (args[0] == "labels" || args[0] == "annotations") {
+		if args[0] == "annotations" {
+			field = analysis.FieldAnnotations
+		}
+		args = args[1:]
+	}
 	if len(args) == 0 && len(filenameOpts.Filenames) == 0 && filenameOpts.Kustomize == "" {
-		return fmt.Errorf("specify a resource type, e.g. `kubectl labels nodes` (see --help)")
+		return fmt.Errorf("specify a resource type, e.g. `kubectl drill labels nodes` (see --help)")
 	}
 	var resourceArg, key string
 	if len(args) > 0 {
@@ -184,6 +191,9 @@ func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
 	}
 	if len(args) > 1 {
 		key = args[1]
+	}
+	if len(args) > 2 {
+		return fmt.Errorf("unexpected argument %q (at most TYPE[/NAME] and KEY)", args[2])
 	}
 	if noColorFlag {
 		color.NoColor = true
@@ -237,21 +247,41 @@ func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
 		fmt.Fprintln(os.Stderr, "No resources found")
 		return nil
 	}
-	set := analysis.Set{Resources: resources}
+	set := analysis.Set{Resources: resources, Field: field}
+
+	// In file mode the positional arg is ours: KIND/NAME selects one object
+	// from the file, anything else is treated as a key.
+	fileResource := ""
+	if fileMode && resourceArg != "" && key == "" {
+		if _, ok := findResource(set, resourceArg); ok {
+			fileResource = resourceArg
+		} else {
+			key = resourceArg
+		}
+		resourceArg = ""
+	}
+
+	// The interactive drill-down is the default view: it needs a terminal
+	// and an open-ended question. --boring, -o, pipes, and view-specific
+	// asks (KEY, --list, --vary) all get the static tables instead.
+	interactive := !boringFlag && !forceStatic && outputFormat == "" &&
+		key == "" && !listFlag && !varyFlag &&
+		term.IsTerminal(int(os.Stdout.Fd()))
 
 	if interactive {
+		if fileResource != "" {
+			if r, ok := findResource(set, fileResource); ok {
+				set = analysis.Set{Resources: []analysis.Resource{*r}, Field: field}
+			}
+		}
 		return tui.Run(set)
 	}
 
-	// In file mode the positional arg is ours: KIND/NAME selects one object
-	// from the file, anything else is treated as a label KEY.
-	if fileMode && resourceArg != "" {
-		if r, ok := findResource(set, resourceArg); ok && key == "" {
-			opts := render.Options{Vary: varyFlag, Output: outputFormat, SetLabel: setLabel(resourceArg, set)}
-			return render.ResourceList(os.Stdout, analysis.Set{Resources: []analysis.Resource{*r}}, set, opts)
+	if fileResource != "" {
+		if r, ok := findResource(set, fileResource); ok {
+			opts := render.Options{Vary: varyFlag, Output: outputFormat, SetLabel: setLabel(fileResource, set)}
+			return render.ResourceList(os.Stdout, analysis.Set{Resources: []analysis.Resource{*r}, Field: field}, set, opts)
 		}
-		key = resourceArg
-		resourceArg = ""
 	}
 
 	opts := render.Options{
@@ -268,7 +298,7 @@ func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
 		view := set
 		if varyAgainstPeers {
 			name := strings.SplitN(resourceArg, "/", 2)[1]
-			view = analysis.Set{}
+			view = analysis.Set{Field: field}
 			for _, r := range set.Resources {
 				if r.Name == name {
 					view.Resources = append(view.Resources, r)
@@ -282,7 +312,7 @@ func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
 	case key != "":
 		return render.ValueDistribution(os.Stdout, set, key, opts)
 	default:
-		opts.Tip = browseTip(configFlags, resourceArg)
+		opts.Tip = tuiTip(configFlags, field, resourceArg)
 		return render.KeySummary(os.Stdout, set, opts)
 	}
 }
@@ -329,17 +359,17 @@ func setLabel(resourceArg string, set analysis.Set) string {
 	return kind
 }
 
-// browseTip suggests the equivalent browse command, only on interactive
+// tuiTip suggests the equivalent interactive command, only on interactive
 // terminals and never when output is machine-readable.
-func browseTip(configFlags *genericclioptions.ConfigFlags, resourceArg string) string {
-	if os.Getenv("KUBECTL_LABELS_NO_TIPS") != "" || outputFormat != "" || varyFlag {
+func tuiTip(configFlags *genericclioptions.ConfigFlags, field analysis.Field, resourceArg string) string {
+	if os.Getenv("KUBECTL_DRILL_NO_TIPS") != "" || outputFormat != "" || varyFlag {
 		return ""
 	}
-	if !term.IsTerminal(int(os.Stdout.Fd())) {
+	if !term.IsTerminal(int(os.Stdout.Fd())) || resourceArg == "" {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("kubectl labels browse " + resourceArg)
+	b.WriteString("kubectl drill " + field.String() + " " + resourceArg)
 	if allNamespaces {
 		b.WriteString(" -A")
 	} else if ns := ptr.Deref(configFlags.Namespace, ""); ns != "" {

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # e2e harness: exercises the built binary against static testdata.
-# Usage: hack/e2e.sh   (builds ./kubectl-labels first)
+# Usage: hack/e2e.sh   (builds ./kubectl-drill first)
 set -u
 
 cd "$(dirname "$0")/.."
-BIN=./kubectl-labels
+BIN=./kubectl-drill
 FAILURES=0
 
 go build -o "$BIN" . || { echo "BUILD FAILED"; exit 1; }
@@ -34,6 +34,11 @@ check_fails() { # name, command...
 
 F="-f testdata/nodes.json"
 
+check "labels mode arg"     "4 nodes · 10 distinct keys · 9 distinctive"  $BIN labels $F
+check "annotations summary" "4 nodes · 3 distinct keys · 2 distinctive"  $BIN annotations $F
+check "annotations uniform"  "1 uniform key hidden"                       $BIN annotations $F
+check "annotations values"  "present on 3/4 nodes · 3 distinct values"   $BIN annotations $F example.com/cost-center
+check "annotations missing" "missing on 1: node-3"                       $BIN annotations $F example.com/cost-center
 check "keys summary header"   "4 nodes · 10 distinct keys · 9 distinctive" $BIN $F
 check "identity detection"    "kubernetes.io/hostname  (identity)"         $BIN $F
 check "uniform hidden"        "1 uniform key hidden"                      $BIN $F
@@ -56,7 +61,7 @@ check "stdin input"           "4 nodes · 10 distinct keys"                 bash
 check "selector in file mode" "2 nodes · 10 distinct keys"                 $BIN $F -l kubernetes.io/arch=amd64
 check "bad selector"          "invalid selector"                           $BIN $F -l '==bogus=='
 check "multi-doc yaml"        "2 pods"                                     $BIN -f testdata/pods.yaml
-check "version output"       "kubectl-labels"                             $BIN version
+check "version output"       "kubectl-drill"                              $BIN version
 
 # value tables cap at 50 rows; --all lifts the cap
 MANY=$(mktemp -d)

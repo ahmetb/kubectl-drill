@@ -1,4 +1,4 @@
-module github.com/ahmetb/kubectl-labels
+module github.com/ahmetb/kubectl-drill
 
 go 1.26.5
 

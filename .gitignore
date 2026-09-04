@@ -1,4 +1,4 @@
-kubectl-labels
+kubectl-drill
 *.tar.gz
 dist/
 hack/demo/kubeconfig

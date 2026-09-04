@@ -23,9 +23,9 @@ import (
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	"github.com/ahmetb/kubectl-labels/internal/analysis"
-	"github.com/ahmetb/kubectl-labels/internal/collect"
-	"github.com/ahmetb/kubectl-labels/internal/render"
+	"github.com/ahmetb/kubectl-drill/internal/analysis"
+	"github.com/ahmetb/kubectl-drill/internal/collect"
+	"github.com/ahmetb/kubectl-drill/internal/render"
 )
 
 func loadTestSet(t *testing.T) analysis.Set {
@@ -149,5 +149,48 @@ func TestJSONOutput(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, `"resources": 4`) || !strings.Contains(out, `"key": "kubernetes.io/hostname"`) {
 		t.Errorf("unexpected json output\n%s", out)
+	}
+}
+
+func TestAnnotationsPipeline(t *testing.T) {
+	resources, err := collect.Query(genericclioptions.NewConfigFlags(true), collect.Options{
+		Filenames: []string{"../testdata/nodes.json"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range resources {
+		if r.Annotations["example.com/owner"] != "platform" {
+			t.Errorf("%s lost its annotations: %+v", r.Name, r.Annotations)
+		}
+	}
+	set := analysis.Set{Resources: resources, Field: analysis.FieldAnnotations}
+
+	var buf bytes.Buffer
+	if err := render.KeySummary(&buf, set, render.Options{SetLabel: "nodes"}); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"4 nodes", "3 distinct keys", "2 distinctive",
+		"example.com/cost-center", "example.com/spot",
+		"1 uniform key hidden",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "kubernetes.io/hostname") {
+		t.Errorf("labels must not leak into the annotations view\n%s", out)
+	}
+
+	buf.Reset()
+	if err := render.ValueDistribution(&buf, set, "example.com/cost-center", render.Options{SetLabel: "nodes"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"present on 3/4 nodes", "cc-0", "missing on 1: node-3"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("output missing %q\n%s", want, buf.String())
+		}
 	}
 }

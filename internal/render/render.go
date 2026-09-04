@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package render prints label statistics as human-friendly tables.
+// Package render prints metadata (label/annotation) statistics as
+// human-friendly tables.
 package render
 
 import (
@@ -29,7 +30,7 @@ import (
 	"golang.org/x/term"
 	"sigs.k8s.io/yaml"
 
-	"github.com/ahmetb/kubectl-labels/internal/analysis"
+	"github.com/ahmetb/kubectl-drill/internal/analysis"
 )
 
 var (
@@ -90,7 +91,7 @@ func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 		gray.Sprintf("%d distinctive", len(distinctive)))
 
 	if len(stats) == 0 {
-		fmt.Fprintln(w, gray.Sprintf("none of the %d %s carry any labels", total, CountNoun(total, opts.SetLabel)))
+		fmt.Fprintln(w, gray.Sprintf("none of the %d %s carry any %s", total, CountNoun(total, opts.SetLabel), set.Field))
 		return nil
 	}
 
@@ -99,7 +100,7 @@ func KeySummary(w io.Writer, set analysis.Set, opts Options) error {
 		show = stats
 	}
 	if len(show) == 0 {
-		fmt.Fprintln(w, gray.Sprint("all labels are identical across the set (--all to show them)"))
+		fmt.Fprintln(w, gray.Sprintf("all %s are identical across the set (--all to show them)", set.Field))
 		return nil
 	}
 
@@ -190,7 +191,7 @@ func ValueDistribution(w io.Writer, set analysis.Set, key string, opts Options) 
 		gray.Sprintf("%d distinct values", len(vs.Values)))
 
 	if vs.Present == 0 {
-		fmt.Fprintln(w, yellow.Sprintf("no %s carry this label key", opts.SetLabel))
+		fmt.Fprintln(w, yellow.Sprintf("no %s carry this %s key", opts.SetLabel, set.Field.Noun()))
 		return nil
 	}
 
@@ -229,11 +230,11 @@ func ValueDistribution(w io.Writer, set analysis.Set, key string, opts Options) 
 	return nil
 }
 
-// ResourceList prints the pivot-by-resource view: one label per line,
-// grouped under each resource. view holds the resources to display; stats
-// is the set used to compute which labels are distinctive (the two differ
-// for "TYPE/NAME --vary", where a single resource is compared against its
-// peers).
+// ResourceList prints the pivot-by-resource view: one key/value pair per
+// line, grouped under each resource. view holds the resources to display;
+// stats is the set used to compute which keys are distinctive (the two
+// differ for "TYPE/NAME --vary", where a single resource is compared
+// against its peers).
 func ResourceList(w io.Writer, view, stats analysis.Set, opts Options) error {
 	resources := append([]analysis.Resource(nil), view.Resources...)
 	sort.Slice(resources, func(i, j int) bool {
@@ -262,8 +263,9 @@ func ResourceList(w io.Writer, view, stats analysis.Set, opts Options) error {
 		header := bold.Sprint(r.Kind) + " " + bold.Sprint(r.String())
 		fmt.Fprintln(w, header)
 
-		keys := make([]string, 0, len(r.Labels))
-		for k := range r.Labels {
+		pairs := r.Map(stats.Field)
+		keys := make([]string, 0, len(pairs))
+		for k := range pairs {
 			if distinctiveKeys != nil && !distinctiveKeys[k] {
 				continue
 			}
@@ -271,11 +273,11 @@ func ResourceList(w io.Writer, view, stats analysis.Set, opts Options) error {
 		}
 		sort.Strings(keys)
 		if len(keys) == 0 {
-			fmt.Fprintln(w, gray.Sprint("  (no labels)"))
+			fmt.Fprintln(w, gray.Sprintf("  (no %s)", stats.Field))
 			continue
 		}
 		for _, k := range keys {
-			fmt.Fprintf(w, "  %s=%s\n", gray.Sprint(k), r.Labels[k])
+			fmt.Fprintf(w, "  %s=%s\n", gray.Sprint(k), pairs[k])
 		}
 	}
 	return nil

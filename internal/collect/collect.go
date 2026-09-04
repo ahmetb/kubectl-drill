@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // Package collect queries Kubernetes resources using the same builder
-// machinery as "kubectl get" and reduces them to their label sets.
+// machinery as "kubectl get" and reduces them to their label and
+// annotation sets.
 //
 // File input (-f) is handled without the builder so that it works fully
 // offline: the resource builder resolves REST mappings via server
@@ -36,7 +37,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/utils/ptr"
 
-	"github.com/ahmetb/kubectl-labels/internal/analysis"
+	"github.com/ahmetb/kubectl-drill/internal/analysis"
 )
 
 // Options mirrors the classic kubectl get selectors.
@@ -50,7 +51,7 @@ type Options struct {
 	Args          []string // resource type, type/name, etc.
 }
 
-// Query fetches the matching resources and extracts their labels.
+// Query fetches the matching resources and extracts their metadata.
 func Query(configFlags *genericclioptions.ConfigFlags, opts Options) ([]analysis.Resource, error) {
 	if len(opts.Filenames) > 0 {
 		return fromFiles(opts)
@@ -98,10 +99,11 @@ func fromServer(configFlags *genericclioptions.ConfigFlags, opts Options) ([]ana
 				return fmt.Errorf("failed to read metadata of %s: %w", info.Name, err)
 			}
 			out = append(out, analysis.Resource{
-				Kind:      info.Object.GetObjectKind().GroupVersionKind().Kind,
-				Namespace: info.Namespace,
-				Name:      info.Name,
-				Labels:    accessor.GetLabels(),
+				Kind:        info.Object.GetObjectKind().GroupVersionKind().Kind,
+				Namespace:   info.Namespace,
+				Name:        info.Name,
+				Labels:      accessor.GetLabels(),
+				Annotations: accessor.GetAnnotations(),
 			})
 			return nil
 		})
@@ -212,10 +214,11 @@ func decode(source string, r io.Reader) ([]analysis.Resource, error) {
 
 func toResource(u unstructured.Unstructured) analysis.Resource {
 	return analysis.Resource{
-		Kind:      u.GetKind(),
-		Namespace: u.GetNamespace(),
-		Name:      u.GetName(),
-		Labels:    u.GetLabels(),
+		Kind:        u.GetKind(),
+		Namespace:   u.GetNamespace(),
+		Name:        u.GetName(),
+		Labels:      u.GetLabels(),
+		Annotations: u.GetAnnotations(),
 	}
 }
 
