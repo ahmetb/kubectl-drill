@@ -35,6 +35,8 @@ check_fails() { # name, command...
 F="-f testdata/nodes.json"
 
 check "labels mode arg"     "4 nodes · 10 distinct keys · 9 distinctive"  $BIN labels $F
+check "labels subcommand"   "Drill into resource labels (the default field)"  $BIN labels --help
+check "annotations subcommand" "Drill into resource annotations"          $BIN annotations --help
 check "annotations summary" "4 nodes · 3 distinct keys · 2 distinctive"  $BIN annotations $F
 check "annotations uniform"  "1 uniform key hidden"                       $BIN annotations $F
 check "annotations values"  "present on 3/4 nodes · 3 distinct values"   $BIN annotations $F example.com/cost-center

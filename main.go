@@ -91,17 +91,32 @@ value distribution. With TYPE/NAME it lists one resource's pairs.`,
   kubectl drill labels pods -n prod -l app=web --boring --vary`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Args:          cobra.MaximumNArgs(3),
+		Args:          cobra.MaximumNArgs(2),
 		Version:       version,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(configFlags, args)
+			return run(configFlags, analysis.FieldLabels, args)
 		},
 	}
 	root.SetVersionTemplate(versionString())
 
+	fieldCmd := func(field analysis.Field, use, short string) *cobra.Command {
+		return &cobra.Command{
+			Use:           use,
+			Short:         short,
+			SilenceUsage:  true,
+			SilenceErrors: true,
+			Args:          cobra.MaximumNArgs(2),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return run(configFlags, field, args)
+			},
+		}
+	}
+	labelsCmd := fieldCmd(analysis.FieldLabels, "labels TYPE[/NAME] [KEY]", "Drill into resource labels (the default field)")
+	annotationsCmd := fieldCmd(analysis.FieldAnnotations, "annotations TYPE[/NAME] [KEY]", "Drill into resource annotations")
+
 	staticRun := func(cmd *cobra.Command, args []string) error {
 		forceStatic = true
-		return run(configFlags, args)
+		return run(configFlags, analysis.FieldLabels, args)
 	}
 	keysAlias := &cobra.Command{
 		Use:          "keys TYPE[/NAME]",
@@ -127,7 +142,7 @@ value distribution. With TYPE/NAME it lists one resource's pairs.`,
 			return staticRun(cmd, args)
 		},
 	}
-	root.AddCommand(keysAlias, valuesAlias, listAlias, &cobra.Command{
+	root.AddCommand(labelsCmd, annotationsCmd, keysAlias, valuesAlias, listAlias, &cobra.Command{
 		Use:          "version",
 		Short:        "Print the kubectl-drill version",
 		SilenceUsage: true,
@@ -172,16 +187,7 @@ func versionString() string {
 	return s + "\n"
 }
 
-func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
-	// The first positional selects which metadata map to drill into;
-	// "labels" is the default and can be omitted.
-	field := analysis.FieldLabels
-	if len(args) > 0 && (args[0] == "labels" || args[0] == "annotations") {
-		if args[0] == "annotations" {
-			field = analysis.FieldAnnotations
-		}
-		args = args[1:]
-	}
+func run(configFlags *genericclioptions.ConfigFlags, field analysis.Field, args []string) error {
 	if len(args) == 0 && len(filenameOpts.Filenames) == 0 && filenameOpts.Kustomize == "" {
 		return fmt.Errorf("specify a resource type, e.g. `kubectl drill labels nodes` (see --help)")
 	}
@@ -191,9 +197,6 @@ func run(configFlags *genericclioptions.ConfigFlags, args []string) error {
 	}
 	if len(args) > 1 {
 		key = args[1]
-	}
-	if len(args) > 2 {
-		return fmt.Errorf("unexpected argument %q (at most TYPE[/NAME] and KEY)", args[2])
 	}
 	if noColorFlag {
 		color.NoColor = true
